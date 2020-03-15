@@ -13,6 +13,7 @@ import io.legado.app.R
 import io.legado.app.base.BaseFragment
 import io.legado.app.constant.EventBus
 import io.legado.app.constant.PreferKey
+import io.legado.app.help.channel
 import io.legado.app.lib.theme.ATH
 import io.legado.app.service.WebService
 import io.legado.app.ui.about.AboutActivity
@@ -23,6 +24,8 @@ import io.legado.app.ui.config.ConfigActivity
 import io.legado.app.ui.config.ConfigViewModel
 import io.legado.app.ui.filechooser.FileChooserDialog
 import io.legado.app.ui.replacerule.ReplaceRuleActivity
+import io.legado.app.ui.widget.prefs.NameListPreference
+import io.legado.app.ui.widget.prefs.PreferenceCategory
 import io.legado.app.ui.widget.prefs.SwitchPreference
 import io.legado.app.utils.*
 import kotlinx.android.synthetic.main.view_title_bar.*
@@ -74,6 +77,16 @@ class MyFragment : BaseFragment(R.layout.fragment_my_config), FileChooserDialog.
             observeEvent<Boolean>(EventBus.WEB_SERVICE_STOP) {
                 webServicePre?.isChecked = false
             }
+            findPreference<NameListPreference>(PreferKey.themeMode)?.let {
+                it.setOnPreferenceChangeListener { _, _ ->
+                    view?.post { App.INSTANCE.applyDayNight() }
+                    true
+                }
+            }
+            if (requireContext().channel == "google") {
+                findPreference<PreferenceCategory>("aboutCategory")
+                    ?.removePreference(findPreference("donate"))
+            }
         }
 
         override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -96,7 +109,6 @@ class MyFragment : BaseFragment(R.layout.fragment_my_config), FileChooserDialog.
             key: String?
         ) {
             when (key) {
-                PreferKey.themeMode -> App.INSTANCE.applyDayNight()
                 PreferKey.webService -> {
                     if (requireContext().getPrefBoolean("webService")) {
                         WebService.start(requireContext())

@@ -18,6 +18,7 @@ import io.legado.app.help.AppConfig
 import io.legado.app.help.BookHelp
 import io.legado.app.lib.theme.ATH
 import io.legado.app.receiver.SharedReceiverActivity
+import io.legado.app.service.WebService
 import io.legado.app.ui.filechooser.FileChooserDialog
 import io.legado.app.ui.filechooser.FilePicker
 import io.legado.app.ui.widget.number.NumberPickerDialog
@@ -34,12 +35,14 @@ class OtherConfigFragment : PreferenceFragmentCompat(),
         App.INSTANCE,
         SharedReceiverActivity::class.java.name
     )
+    private val webPort get() = getPrefInt(PreferKey.webPort, 1122)
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         putPrefBoolean(PreferKey.processText, isProcessTextEnabled())
         addPreferencesFromResource(R.xml.pref_config_other)
-        upPreferenceSummary(PreferKey.downloadPath, BookHelp.downloadPath)
+        upPreferenceSummary(getString(R.string.pk_download_path), BookHelp.downloadPath)
         upPreferenceSummary(PreferKey.threadCount, AppConfig.threadCount.toString())
+        upPreferenceSummary(PreferKey.webPort, webPort.toString())
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -63,7 +66,15 @@ class OtherConfigFragment : PreferenceFragmentCompat(),
                 .show {
                     AppConfig.threadCount = it
                 }
-            PreferKey.downloadPath -> selectDownloadPath()
+            PreferKey.webPort -> NumberPickerDialog(requireContext())
+                .setTitle(getString(R.string.web_port_title))
+                .setMaxValue(60000)
+                .setMinValue(1024)
+                .setValue(webPort)
+                .show {
+                    putPrefInt(PreferKey.webPort, it)
+                }
+            getString(R.string.pk_download_path) -> selectDownloadPath()
             PreferKey.cleanCache -> {
                 BookHelp.clearCache()
                 toast(R.string.clear_cache_success)
@@ -74,13 +85,19 @@ class OtherConfigFragment : PreferenceFragmentCompat(),
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
         when (key) {
-            PreferKey.downloadPath -> {
+            getString(R.string.pk_download_path) -> {
                 upPreferenceSummary(key, BookHelp.downloadPath)
             }
             PreferKey.threadCount -> upPreferenceSummary(
-                PreferKey.threadCount,
-                AppConfig.threadCount.toString()
+                key, AppConfig.threadCount.toString()
             )
+            PreferKey.webPort -> {
+                upPreferenceSummary(key, webPort.toString())
+                if (WebService.isRun) {
+                    WebService.stop(requireContext())
+                    WebService.start(requireContext())
+                }
+            }
             PreferKey.recordLog -> LogUtils.upLevel()
             PreferKey.processText -> sharedPreferences?.let {
                 setProcessTextEnable(it.getBoolean(key, true))
@@ -93,6 +110,7 @@ class OtherConfigFragment : PreferenceFragmentCompat(),
         val preference = findPreference<Preference>(preferenceKey) ?: return
         when (preferenceKey) {
             PreferKey.threadCount -> preference.summary = getString(R.string.threads_num, value)
+            PreferKey.webPort -> preference.summary = getString(R.string.web_port_summary, value)
             else -> if (preference is ListPreference) {
                 val index = preference.findIndexOfValue(value)
                 // Set the summary to reflect the new value.
@@ -123,13 +141,17 @@ class OtherConfigFragment : PreferenceFragmentCompat(),
 
     private fun selectDownloadPath() {
         FilePicker.selectFolder(this, requestCodeDownloadPath) {
-            removePref(PreferKey.downloadPath)
+            removePref(getString(R.string.pk_download_path))
         }
+    }
+
+    private fun putDownloadPath(path: String) {
+        putPrefString(getString(R.string.pk_download_path), path)
     }
 
     override fun onFilePicked(requestCode: Int, currentPath: String) {
         if (requestCode == requestCodeDownloadPath) {
-            putPrefString(PreferKey.downloadPath, currentPath)
+            putDownloadPath(currentPath)
         }
     }
 
@@ -142,7 +164,7 @@ class OtherConfigFragment : PreferenceFragmentCompat(),
                         uri,
                         Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                     )
-                    putPrefString(PreferKey.downloadPath, uri.toString())
+                    putDownloadPath(uri.toString())
                 }
             }
         }

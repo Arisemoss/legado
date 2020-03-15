@@ -20,7 +20,7 @@ object AnalyzeTxtFile {
     private const val BUFFER_SIZE = 512 * 1024
     //没有标题的时候，每个章节的最大长度
     private const val MAX_LENGTH_WITH_NO_CHAPTER = 10 * 1024
-    private val cacheFolder: File by lazy {
+    val cacheFolder: File by lazy {
         val rootFile = App.INSTANCE.getExternalFilesDir(null)
             ?: App.INSTANCE.externalCacheDir
             ?: App.INSTANCE.cacheDir
@@ -193,15 +193,18 @@ object AnalyzeTxtFile {
     }
 
     private fun getBookFile(context: Context, book: Book): File {
-        val uri = Uri.parse(book.bookUrl)
-        val bookFile = FileUtils.getFile(cacheFolder, book.originName, subDirs = *arrayOf())
-        if (!bookFile.exists()) {
-            bookFile.createNewFile()
-            DocumentUtils.readBytes(context, uri)?.let {
-                bookFile.writeBytes(it)
+        if (book.bookUrl.isContentPath()) {
+            val uri = Uri.parse(book.bookUrl)
+            val bookFile = FileUtils.getFile(cacheFolder, book.originName, subDirs = *arrayOf())
+            if (!bookFile.exists()) {
+                bookFile.createNewFile()
+                DocumentUtils.readBytes(context, uri)?.let {
+                    bookFile.writeBytes(it)
+                }
             }
+            return bookFile
         }
-        return bookFile
+        return File(book.bookUrl)
     }
 
     private fun getTocRule(book: Book, bookStream: RandomAccessFile, charset: Charset): Pattern? {
