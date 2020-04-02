@@ -23,6 +23,7 @@
         android:label="@string/app_name"
         android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true"
+        android:requestLegacyExternalStorage="true"
         android:theme="@style/AppTheme.Light"
         tools:ignore="AllowBackup,GoogleAppIndexingWarning,UnusedAttribute">
         <!--主入口-->
@@ -68,6 +69,48 @@
         <activity
             android:name=".ui.welcome.Launcher3"
             android:icon="@mipmap/launcher3"
+            android:enabled="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts"
+                android:launchMode="singleTask" />
+        </activity>
+        <!--图标4-->
+        <activity
+            android:name=".ui.welcome.Launcher4"
+            android:icon="@mipmap/launcher4"
+            android:enabled="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts"
+                android:launchMode="singleTask" />
+        </activity>
+        <!--图标5-->
+        <activity
+            android:name=".ui.welcome.Launcher5"
+            android:icon="@mipmap/launcher5"
+            android:enabled="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts"
+                android:launchMode="singleTask" />
+        </activity>
+        <!--图标6-->
+        <activity
+            android:name=".ui.welcome.Launcher6"
+            android:icon="@mipmap/launcher6"
             android:enabled="false">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -214,7 +257,7 @@
             android:launchMode="singleTop" />
         <!--订阅条目-->
         <activity
-            android:name=".ui.rss.article.RssArticlesActivity"
+            android:name=".ui.rss.article.RssSortActivity"
             android:launchMode="singleTop" />
         <!--Rss收藏-->
         <activity
@@ -242,6 +285,19 @@
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".ui.config.FileAssociationActivity"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="file"/>
+                <data android:scheme="content"/>
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="application/json" />
             </intent-filter>
         </activity>
 
