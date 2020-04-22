@@ -134,6 +134,10 @@ class ReadBookActivity : VMBaseActivity<ReadBookViewModel>(R.layout.activity_boo
             timeBatteryReceiver = null
         }
         upSystemUiVisibility()
+        if (!BuildConfig.DEBUG) {
+            SyncBookProgress.uploadBookProgress()
+            Backup.autoBack(this)
+        }
     }
 
     /**
@@ -706,6 +710,7 @@ class ReadBookActivity : VMBaseActivity<ReadBookViewModel>(R.layout.activity_boo
         observeEvent<Boolean>(EventBus.UP_CONFIG) {
             upSystemUiVisibility()
             page_view.upBg()
+            page_view.upTipStyle()
             page_view.upStyle()
             if (it) {
                 ReadBook.loadContent(resetPageOffset = false)

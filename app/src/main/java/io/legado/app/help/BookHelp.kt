@@ -1,6 +1,6 @@
 package io.legado.app.help
 
-import com.github.houbb.opencc4j.core.impl.ZhConvertBootstrap
+import com.hankcs.hanlp.HanLP
 import io.legado.app.App
 import io.legado.app.constant.EventBus
 import io.legado.app.data.entities.Book
@@ -196,7 +196,7 @@ object BookHelp {
         origin: String?,
         content: String,
         enableReplace: Boolean
-    ): String {
+    ): List<String> {
         var c = content
         if (enableReplace) {
             synchronized(this) {
@@ -228,14 +228,28 @@ object BookHelp {
                 }
             }
         }
-        if (!c.substringBefore("\n").contains(title)) {
-            c = "$title\n$c"
+        try {
+            when (AppConfig.chineseConverterType) {
+                1 -> c = HanLP.convertToSimplifiedChinese(c)
+                2 -> c = HanLP.convertToTraditionalChinese(c)
+            }
+        } catch (e: Exception) {
+            withContext(Main) {
+                App.INSTANCE.toast("简繁转换出错")
+            }
         }
-        when (AppConfig.chineseConverterType) {
-            1 -> c = ZhConvertBootstrap.newInstance().toSimple(c)
-            2 -> c = ZhConvertBootstrap.newInstance().toTraditional(c)
+        val contents = arrayListOf<String>()
+        c.split("\n").forEach {
+            val str = it.replace("^\\s+".toRegex(), "")
+            if (contents.isEmpty()) {
+                contents.add(title)
+                if (it != title && it.isNotEmpty()) {
+                    contents.add("${ReadBookConfig.bodyIndent}$str")
+                }
+            } else if (str.isNotEmpty()) {
+                contents.add("${ReadBookConfig.bodyIndent}$str")
+            }
         }
-        return c
-            .replace("\\s*\\n+\\s*".toRegex(), "\n${ReadBookConfig.bodyIndent}")
+        return contents
     }
 }
