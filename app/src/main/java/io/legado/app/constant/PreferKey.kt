@@ -25,6 +25,7 @@ object PreferKey {
     const val readBookFont = "readBookFont"
     const val fontFolder = "fontFolder"
     const val backupPath = "backupUri"
+    const val restoreIgnore = "restoreIgnore"
     const val threadCount = "threadCount"
     const val webPort = "webPort"
     const val keepLight = "keep_light"
@@ -43,4 +44,22 @@ object PreferKey {
     const val readStyleSelect = "readStyleSelect"
     const val systemTypefaces = "system_typefaces"
     const val readBodyToLh = "readBodyToLh"
+    const val textFullJustify = "textFullJustify"
+    const val textBottomJustify = "textBottomJustify"
+    const val autoReadSpeed = "autoReadSpeed"
+    const val barElevation = "barElevation"
+    const val transparentStatusBar = "transparentStatusBar"
+    const val defaultCover = "defaultCover"
+    const val replaceEnableDefault = "replaceEnableDefault"
+
+    const val cPrimary = "colorPrimary"
+    const val cAccent = "colorAccent"
+    const val cBackground = "colorBackground"
+    const val cBBackground = "colorBottomBackground"
+
+    const val cNPrimary = "colorPrimaryNight"
+    const val cNAccent = "colorAccentNight"
+    const val cNBackground = "colorBackgroundNight"
+    const val cNBBackground = "colorBottomBackgroundNight"
+
 }

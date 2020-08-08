@@ -20,6 +20,7 @@
         <item>跟隨系統</item>
         <item>亮色主題</item>
         <item>暗色主題</item>
+        <item>E-Ink(墨水屏)</item>
     </string-array>
 
     <string-array name="NavBarColors">
@@ -47,6 +48,20 @@
         <item>系統默認字體</item>
         <item>系統襯線字體</item>
         <item>系統等寬字體</item>
+    </string-array>
+
+    <string-array name="text_font_weight">
+        <item>正常</item>
+        <item>粗體</item>
+        <item>細體</item>
+    </string-array>
+
+    <string-array name="default_themes">
+        <item>极简</item>
+        <item>曜夜</item>
+        <item>经典</item>
+        <item>黑白</item>
+        <item>A屏黑</item>
     </string-array>
 
 </resources>

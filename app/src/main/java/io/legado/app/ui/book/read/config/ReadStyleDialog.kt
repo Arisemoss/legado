@@ -13,6 +13,7 @@ import androidx.fragment.app.DialogFragment
 import io.legado.app.R
 import io.legado.app.constant.EventBus
 import io.legado.app.constant.PreferKey
+import io.legado.app.help.AppConfig
 import io.legado.app.help.ReadBookConfig
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.dialogs.selector
@@ -103,9 +104,7 @@ class ReadStyleDialog : DialogFragment(), FontSelectDialog.CallBack {
         tv_title_mode.onClick {
             showTitleConfig()
         }
-        tv_text_bold.onClick {
-            ReadBookConfig.textBold = !ReadBookConfig.textBold
-            tv_text_bold.isSelected = ReadBookConfig.textBold
+        text_font_weight_converter.onChanged {
             postEvent(EventBus.UP_CONFIG, true)
         }
         tv_text_font.onClick {
@@ -193,7 +192,7 @@ class ReadStyleDialog : DialogFragment(), FontSelectDialog.CallBack {
                     }
                 }
             customView = rootView
-        }.show()
+        }.show().applyTint()
     }
 
     private fun changeBg(index: Int) {
@@ -203,6 +202,9 @@ class ReadStyleDialog : DialogFragment(), FontSelectDialog.CallBack {
             upStyle()
             upBg()
             postEvent(EventBus.UP_CONFIG, true)
+        }
+        if (AppConfig.isEInkMode) {
+            toast(R.string.e_ink_change_bg)
         }
     }
 
@@ -215,7 +217,6 @@ class ReadStyleDialog : DialogFragment(), FontSelectDialog.CallBack {
 
     private fun upStyle() {
         ReadBookConfig.let {
-            tv_text_bold.isSelected = it.textBold
             dsb_text_size.progress = it.textSize - 5
             dsb_text_letter_spacing.progress = (it.letterSpacing * 100).toInt() + 50
             dsb_line_size.progress = it.lineSpacingExtra

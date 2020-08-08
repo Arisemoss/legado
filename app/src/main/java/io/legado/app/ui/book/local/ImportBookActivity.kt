@@ -20,6 +20,7 @@ import io.legado.app.base.VMBaseActivity
 import io.legado.app.help.AppConfig
 import io.legado.app.help.permission.Permissions
 import io.legado.app.help.permission.PermissionsCompat
+import io.legado.app.lib.theme.backgroundColor
 import io.legado.app.ui.filechooser.FileChooserDialog
 import io.legado.app.ui.filechooser.FilePicker
 import io.legado.app.ui.widget.SelectActionBar
@@ -62,6 +63,7 @@ class ImportBookActivity : VMBaseActivity<ImportBookViewModel>(R.layout.activity
     }
 
     private fun initView() {
+        lay_top.setBackgroundColor(backgroundColor)
         recycler_view.layoutManager = LinearLayoutManager(this)
         adapter = ImportBookAdapter(this, this)
         recycler_view.adapter = adapter
@@ -172,7 +174,10 @@ class ImportBookActivity : VMBaseActivity<ImportBookViewModel>(R.layout.activity
                     val item = docList[i]
                     if (item.name.startsWith(".")) {
                         docList.removeAt(i)
-                    } else if (!item.isDir && !item.name.endsWith(".txt", true)) {
+                    } else if (!item.isDir
+                        && !item.name.endsWith(".txt", true)
+                        && !item.name.endsWith(".epub", true)
+                    ) {
                         docList.removeAt(i)
                     }
                 }
@@ -196,7 +201,9 @@ class ImportBookActivity : VMBaseActivity<ImportBookViewModel>(R.layout.activity
                                 Uri.parse(it.absolutePath)
                             )
                         )
-                } else if (it.name.endsWith(".txt", true)) {
+                } else if (it.name.endsWith(".txt", true)
+                    || it.name.endsWith(".epub", true)
+                ) {
                     docList.add(
                         DocItem(
                             it.name,

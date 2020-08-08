@@ -1,17 +1,19 @@
 package io.legado.app.ui.book.read
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.util.AttributeSet
 import android.view.WindowManager
 import android.view.animation.Animation
-import android.view.animation.AnimationUtils
 import android.widget.FrameLayout
 import android.widget.SeekBar
 import androidx.core.view.isVisible
 import io.legado.app.App
 import io.legado.app.R
+import io.legado.app.constant.EventBus
 import io.legado.app.help.AppConfig
 import io.legado.app.help.ReadBookConfig
+import io.legado.app.lib.theme.Selector
 import io.legado.app.lib.theme.accentColor
 import io.legado.app.lib.theme.bottomBackground
 import io.legado.app.lib.theme.buttonDisabledColor
@@ -28,6 +30,7 @@ class ReadMenu : FrameLayout {
     private lateinit var menuTopOut: Animation
     private lateinit var menuBottomIn: Animation
     private lateinit var menuBottomOut: Animation
+    private var bottomBackgroundList: ColorStateList
     private var onMenuOutEnd: (() -> Unit)? = null
 
     constructor(context: Context) : super(context)
@@ -42,6 +45,10 @@ class ReadMenu : FrameLayout {
 
     init {
         callBack = activity as? CallBack
+        bottomBackgroundList = Selector.colorBuild()
+            .setDefaultColor(context.bottomBackground)
+            .setPressedColor(ColorUtils.darkenColor(context.bottomBackground))
+            .create()
         inflate(context, R.layout.view_read_menu, this)
         if (AppConfig.isNightTheme) {
             fabNightTheme.setImageResource(R.drawable.ic_daytime)
@@ -140,15 +147,23 @@ class ReadMenu : FrameLayout {
         })
 
         //自动翻页
-        fabAutoPage.onClick { callBack?.autoPage() }
+        fabAutoPage.backgroundTintList = bottomBackgroundList
+        fabAutoPage.onClick {
+            runMenuOut {
+                callBack?.autoPage()
+            }
+        }
 
         //替换
+        fabReplaceRule.backgroundTintList = bottomBackgroundList
         fabReplaceRule.onClick { callBack?.openReplaceRule() }
 
         //夜间模式
+        fabNightTheme.backgroundTintList = bottomBackgroundList
         fabNightTheme.onClick {
             AppConfig.isNightTheme = !AppConfig.isNightTheme
             App.INSTANCE.applyDayNight()
+            postEvent(EventBus.RECREATE, "")
         }
 
         //上一章
@@ -190,8 +205,8 @@ class ReadMenu : FrameLayout {
     }
 
     private fun initAnimation() {
-        menuTopIn = AnimationUtils.loadAnimation(context, R.anim.anim_readbook_top_in)
-        menuBottomIn = AnimationUtils.loadAnimation(context, R.anim.anim_readbook_bottom_in)
+        menuTopIn = AnimationUtilsSupport.loadAnimation(context, R.anim.anim_readbook_top_in)
+        menuBottomIn = AnimationUtilsSupport.loadAnimation(context, R.anim.anim_readbook_bottom_in)
         menuTopIn.setAnimationListener(object : Animation.AnimationListener {
             override fun onAnimationStart(animation: Animation) {
                 callBack?.upSystemUiVisibility()
@@ -213,8 +228,8 @@ class ReadMenu : FrameLayout {
         })
 
         //隐藏菜单
-        menuTopOut = AnimationUtils.loadAnimation(context, R.anim.anim_readbook_top_out)
-        menuBottomOut = AnimationUtils.loadAnimation(context, R.anim.anim_readbook_bottom_out)
+        menuTopOut = AnimationUtilsSupport.loadAnimation(context, R.anim.anim_readbook_top_out)
+        menuBottomOut = AnimationUtilsSupport.loadAnimation(context, R.anim.anim_readbook_bottom_out)
         menuTopOut.setAnimationListener(object : Animation.AnimationListener {
             override fun onAnimationStart(animation: Animation) {
                 vw_menu_bg.setOnClickListener(null)

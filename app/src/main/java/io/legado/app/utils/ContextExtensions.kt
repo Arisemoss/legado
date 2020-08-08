@@ -3,6 +3,7 @@ package io.legado.app.utils
 
 import android.annotation.SuppressLint
 import android.content.*
+import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Bitmap
@@ -19,6 +20,7 @@ import androidx.core.content.edit
 import cn.bingoogolapple.qrcode.zxing.QRCodeEncoder
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
+import io.legado.app.App
 import io.legado.app.BuildConfig
 import io.legado.app.R
 import org.jetbrains.anko.defaultSharedPreferences
@@ -156,7 +158,10 @@ val Context.sysBattery: Int
         val iFilter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
         val batteryStatus = registerReceiver(null, iFilter)
         return batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-}
+    }
+
+val Context.externalFilesDir: File
+    get() = App.INSTANCE.getExternalFilesDir(null) ?: App.INSTANCE.filesDir
 
 fun Context.openUrl(url: String) {
     openUrl(Uri.parse(url))
@@ -179,3 +184,15 @@ fun Context.openUrl(uri: Uri) {
         }
     }
 }
+
+val Context.channel: String
+    get() {
+        try {
+            val pm = packageManager
+            val appInfo = pm.getApplicationInfo(packageName, PackageManager.GET_META_DATA);
+            return appInfo.metaData.getString("channel") ?: ""
+        } catch (e: Exception) {
+            e.printStackTrace();
+        }
+        return ""
+    }

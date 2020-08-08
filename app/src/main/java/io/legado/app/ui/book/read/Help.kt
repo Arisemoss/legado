@@ -20,6 +20,7 @@ import io.legado.app.lib.dialogs.noButton
 import io.legado.app.lib.dialogs.yesButton
 import io.legado.app.lib.theme.ATH
 import io.legado.app.lib.theme.ThemeStore
+import io.legado.app.lib.theme.backgroundColor
 import io.legado.app.service.help.Download
 import io.legado.app.service.help.ReadBook
 import io.legado.app.utils.applyTint
@@ -63,7 +64,9 @@ object Help {
         }
     }
 
-
+    /**
+     * 屏幕方向
+     */
     @SuppressLint("SourceLockedOrientationActivity")
     fun setOrientation(activity: Activity) = activity.apply {
         when (AppConfig.requestedDirection) {
@@ -129,6 +132,7 @@ object Help {
                     LayoutInflater.from(context).inflate(R.layout.dialog_download_choice, null)
                         .apply {
                             view = this
+                            setBackgroundColor(context.backgroundColor)
                             edit_start.setText(book.durChapterIndex.toString())
                             edit_end.setText(book.totalChapterNum.toString())
                         }
@@ -155,7 +159,7 @@ object Help {
             customView {
                 layoutInflater.inflate(R.layout.dialog_edit_text, null).apply {
                     editText = edit_view.apply {
-                        hint = "备注内容"
+                        setHint(R.string.note_content)
                     }
                 }
             }
@@ -163,13 +167,12 @@ object Help {
                 editText?.text?.toString()?.let { editContent ->
                     AsyncTask.execute {
                         val bookmark = Bookmark(
-                            book.durChapterTime,
-                            book.bookUrl,
-                            book.name,
-                            ReadBook.durChapterIndex,
-                            ReadBook.durPageIndex,
-                            textChapter.title,
-                            editContent
+                            bookUrl = book.bookUrl,
+                            bookName = book.name,
+                            chapterIndex = ReadBook.durChapterIndex,
+                            pageIndex = ReadBook.durPageIndex,
+                            chapterName = textChapter.title,
+                            content = editContent
                         )
                         App.db.bookmarkDao().insert(bookmark)
                     }

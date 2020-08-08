@@ -6,9 +6,10 @@ import io.legado.app.constant.EventBus
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookChapter
 import io.legado.app.data.entities.ReplaceRule
-import io.legado.app.model.localBook.AnalyzeTxtFile
+import io.legado.app.model.localBook.LocalBook
 import io.legado.app.utils.FileUtils
 import io.legado.app.utils.MD5Utils
+import io.legado.app.utils.externalFilesDir
 import io.legado.app.utils.postEvent
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Dispatchers.Main
@@ -20,9 +21,7 @@ import kotlin.math.min
 
 object BookHelp {
     private const val cacheFolderName = "book_cache"
-    private val downloadDir: File =
-        App.INSTANCE.getExternalFilesDir(null)
-            ?: App.INSTANCE.cacheDir
+    private val downloadDir: File = App.INSTANCE.externalFilesDir
 
     private fun bookFolderName(book: Book): String {
         return formatFolderName(book.name) + MD5Utils.md5Encode16(book.bookUrl)
@@ -81,7 +80,7 @@ object BookHelp {
 
     fun getContent(book: Book, bookChapter: BookChapter): String? {
         if (book.isLocalBook()) {
-            return AnalyzeTxtFile.getContent(book, bookChapter)
+            return LocalBook.getContext(book, bookChapter)
         } else {
             val file = FileUtils.getFile(
                 downloadDir,
@@ -111,12 +110,16 @@ object BookHelp {
         return folderName.replace("[\\\\/:*?\"<>|.]".toRegex(), "")
     }
 
-    fun formatAuthor(author: String?): String {
+    fun formatBookName(name: String): String {
+        return name
+            .replace("\\s+作\\s*者.*".toRegex(), "")
+            .trim { it <= ' ' }
+    }
+
+    fun formatBookAuthor(author: String): String {
         return author
-            ?.replace("作\\s*者\\s*[：:]\n*".toRegex(), "")
-            ?.replace("\\s+".toRegex(), " ")
-            ?.trim { it <= ' ' }
-            ?: ""
+            .replace(".*?作\\s*?者[:：]".toRegex(), "")
+            .trim { it <= ' ' }
     }
 
     /**
@@ -241,9 +244,10 @@ object BookHelp {
         val contents = arrayListOf<String>()
         c.split("\n").forEach {
             val str = it.replace("^\\s+".toRegex(), "")
+                .replace("\r", "")
             if (contents.isEmpty()) {
                 contents.add(title)
-                if (it != title && it.isNotEmpty()) {
+                if (str != title && it.isNotEmpty()) {
                     contents.add("${ReadBookConfig.bodyIndent}$str")
                 }
             } else if (str.isNotEmpty()) {

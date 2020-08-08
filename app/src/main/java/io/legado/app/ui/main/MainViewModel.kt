@@ -3,11 +3,14 @@ package io.legado.app.ui.main
 import android.app.Application
 import io.legado.app.App
 import io.legado.app.base.BaseViewModel
+import io.legado.app.constant.BookType
 import io.legado.app.constant.EventBus
+import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.RssSource
 import io.legado.app.help.http.HttpHelper
 import io.legado.app.help.storage.Restore
 import io.legado.app.model.WebBook
+import io.legado.app.utils.FileUtils
 import io.legado.app.utils.GSON
 import io.legado.app.utils.fromJsonObject
 import io.legado.app.utils.postEvent
@@ -19,7 +22,15 @@ class MainViewModel(application: Application) : BaseViewModel(application) {
 
     fun upChapterList() {
         execute {
-            App.db.bookDao().hasUpdateBooks.forEach { book ->
+            upChapterList(App.db.bookDao().hasUpdateBooks)
+        }
+    }
+
+    fun upChapterList(books: List<Book>) {
+        execute {
+            books.filter {
+                it.origin != BookType.local && it.canUpdate
+            }.forEach { book ->
                 if (!updateList.contains(book.bookUrl)) {
                     App.db.bookSourceDao().getBookSource(book.origin)?.let { bookSource ->
                         synchronized(this) {
@@ -65,6 +76,12 @@ class MainViewModel(application: Application) : BaseViewModel(application) {
                 }
                 App.db.rssSourceDao().insert(*sources.toTypedArray())
             }
+        }
+    }
+
+    fun postLoad() {
+        execute {
+            FileUtils.deleteFile(FileUtils.getPath(context.cacheDir, "Fonts"))
         }
     }
 }

@@ -103,20 +103,20 @@ abstract class HorizontalPageDelegate(pageView: PageView) : PageDelegate(pageVie
         }
     }
 
-    override fun nextPageByAnim() {
-        super.nextPageByAnim()
+    override fun nextPageByAnim(animationSpeed: Int) {
+        abort()
         if (!hasNext()) return
         setDirection(Direction.NEXT)
         setTouchPoint(viewWidth.toFloat(), 0f)
-        onAnimStart()
+        onAnimStart(animationSpeed)
     }
 
-    override fun prevPageByAnim() {
-        super.prevPageByAnim()
+    override fun prevPageByAnim(animationSpeed: Int) {
+        abort()
         if (!hasPrev()) return
         setDirection(Direction.PREV)
         setTouchPoint(0f, 0f)
-        onAnimStart()
+        onAnimStart(animationSpeed)
     }
 
     override fun onDestroy() {

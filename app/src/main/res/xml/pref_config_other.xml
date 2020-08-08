@@ -31,6 +31,11 @@
             app:allowDividerBelow="false"
             app:iconSpaceReserved="false" />
 
+        <io.legado.app.ui.widget.prefs.Preference
+            android:key="defaultCover"
+            android:title="@string/default_cover"
+            app:iconSpaceReserved="false" />
+
     </io.legado.app.ui.widget.prefs.PreferenceCategory>
 
     <io.legado.app.ui.widget.prefs.PreferenceCategory
@@ -39,6 +44,13 @@
         app:allowDividerAbove="true"
         app:allowDividerBelow="false"
         app:iconSpaceReserved="false">
+
+        <io.legado.app.ui.widget.prefs.SwitchPreference
+            android:defaultValue="true"
+            android:key="replaceEnableDefault"
+            android:title="@string/replace_enable_default_t"
+            android:summary="@string/replace_enable_default_s"
+            app:iconSpaceReserved="false" />
 
         <io.legado.app.ui.widget.prefs.Preference
             android:key="threadCount"
@@ -60,6 +72,7 @@
         <io.legado.app.ui.widget.prefs.Preference
             android:key="cleanCache"
             android:title="@string/cleanCache"
+            android:summary="@string/clear_cache_summary"
             app:iconSpaceReserved="false" />
 
         <io.legado.app.ui.widget.prefs.SwitchPreference

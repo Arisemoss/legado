@@ -10,6 +10,7 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.Scroller
 import androidx.annotation.CallSuper
 import com.google.android.material.snackbar.Snackbar
+import io.legado.app.R
 import io.legado.app.help.AppConfig
 import io.legado.app.help.ReadBookConfig
 import io.legado.app.ui.book.read.page.ContentView
@@ -23,6 +24,7 @@ abstract class PageDelegate(protected val pageView: PageView) :
         pageView.width * 0.66f, pageView.height * 0.66f
     )
     protected val context: Context = pageView.context
+    private val defaultAnimationSpeed = 300
 
     //起始点
     protected var startX: Float = 0f
@@ -113,14 +115,13 @@ abstract class PageDelegate(protected val pageView: PageView) :
         pageView.invalidate()
     }
 
-    protected fun startScroll(startX: Int, startY: Int, dx: Int, dy: Int) {
-        scroller.startScroll(
-            startX,
-            startY,
-            dx,
-            dy,
-            if (dx != 0) (abs(dx) * 0.3).toInt() else (abs(dy) * 0.3).toInt()
-        )
+    protected fun startScroll(startX: Int, startY: Int, dx: Int, dy: Int, animationSpeed: Int) {
+        val duration = if (dx != 0) {
+            (animationSpeed * abs(dx)) / viewWidth
+        } else {
+            (animationSpeed * abs(dy)) / viewHeight
+        }
+        scroller.startScroll(startX, startY, dx, dy, duration)
         isRunning = true
         isStarted = true
         pageView.invalidate()
@@ -162,7 +163,7 @@ abstract class PageDelegate(protected val pageView: PageView) :
         return false
     }
 
-    open fun onAnimStart() {}//scroller start
+    open fun onAnimStart(animationSpeed: Int) {}//scroller start
 
     open fun onDraw(canvas: Canvas) {}//绘制
 
@@ -170,19 +171,15 @@ abstract class PageDelegate(protected val pageView: PageView) :
 
     open fun onScroll() {}//移动contentView， slidePage
 
-    open fun nextPageByAnim() {
-        abort()
-    }
+    abstract fun nextPageByAnim(animationSpeed: Int)
 
-    open fun prevPageByAnim() {
-        abort()
-    }
+    abstract fun prevPageByAnim(animationSpeed: Int)
 
     open fun keyTurnPage(direction: Direction) {
         if (isRunning) return
         when (direction) {
-            Direction.NEXT -> nextPageByAnim()
-            Direction.PREV -> prevPageByAnim()
+            Direction.NEXT -> nextPageByAnim(100)
+            Direction.PREV -> prevPageByAnim(100)
             else -> return
         }
     }
@@ -210,7 +207,7 @@ abstract class PageDelegate(protected val pageView: PageView) :
                         if (selectedOnDown) {
                             selectedOnDown = false
                         }
-                        if (!noNext) onAnimStart()
+                        if (!noNext) onAnimStart(defaultAnimationSpeed)
                     }
                 }
             }
@@ -250,7 +247,7 @@ abstract class PageDelegate(protected val pageView: PageView) :
             return true
         }
         if (isMoved) {
-            if (!noNext) onAnimStart()
+            if (!noNext) onAnimStart(defaultAnimationSpeed)
             return true
         }
         val x = e.x
@@ -262,9 +259,9 @@ abstract class PageDelegate(protected val pageView: PageView) :
             if (x > viewWidth / 2 ||
                 AppConfig.clickAllNext
             ) {
-                nextPageByAnim()
+                nextPageByAnim(defaultAnimationSpeed)
             } else {
-                prevPageByAnim()
+                prevPageByAnim(defaultAnimationSpeed)
             }
         }
         return true
@@ -320,7 +317,7 @@ abstract class PageDelegate(protected val pageView: PageView) :
         val hasPrev = pageView.pageFactory.hasPrev()
         if (!hasPrev) {
             if (!snackBar.isShown) {
-                snackBar.setText("没有上一页")
+                snackBar.setText(R.string.no_prev_page)
                 snackBar.show()
             }
         }
@@ -334,7 +331,7 @@ abstract class PageDelegate(protected val pageView: PageView) :
         val hasNext = pageView.pageFactory.hasNext()
         if (!hasNext) {
             if (!snackBar.isShown) {
-                snackBar.setText("没有下一页")
+                snackBar.setText(R.string.no_next_page)
                 snackBar.show()
             }
         }

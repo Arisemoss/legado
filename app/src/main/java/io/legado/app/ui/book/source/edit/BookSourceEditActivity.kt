@@ -23,6 +23,7 @@ import io.legado.app.data.entities.BookSource
 import io.legado.app.data.entities.rule.*
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.ATH
+import io.legado.app.lib.theme.backgroundColor
 import io.legado.app.ui.book.source.debug.BookSourceDebugActivity
 import io.legado.app.ui.login.SourceLogin
 import io.legado.app.ui.widget.KeyboardToolPop
@@ -122,6 +123,7 @@ class BookSourceEditActivity :
         window.decorView.viewTreeObserver.addOnGlobalLayoutListener(KeyboardOnGlobalChangeListener())
         recycler_view.layoutManager = LinearLayoutManager(this)
         recycler_view.adapter = adapter
+        tab_layout.setBackgroundColor(backgroundColor)
         tab_layout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabReselected(tab: TabLayout.Tab?) {
 
@@ -233,6 +235,8 @@ class BookSourceEditActivity :
             add(EditEntity("nextContentUrl", cr?.nextContentUrl, R.string.rule_next_content))
             add(EditEntity("webJs", cr?.webJs, R.string.rule_web_js))
             add(EditEntity("sourceRegex", cr?.sourceRegex, R.string.rule_source_regex))
+            add(EditEntity("replaceRegex", cr?.replaceRegex, R.string.rule_replace_regex))
+            add(EditEntity("imageStyle", cr?.imageStyle, R.string.rule_image_style))
         }
         //发现
         val er = source?.getExploreRule()
@@ -332,13 +336,15 @@ class BookSourceEditActivity :
                 "nextContentUrl" -> contentRule.nextContentUrl = it.value
                 "webJs" -> contentRule.webJs = it.value
                 "sourceRegex" -> contentRule.sourceRegex = it.value
+                "replaceRegex" -> contentRule.replaceRegex = it.value
+                "imageStyle" -> contentRule.imageStyle = it.value
             }
         }
-        source.ruleSearch = GSON.toJson(searchRule)
-        source.ruleExplore = GSON.toJson(exploreRule)
-        source.ruleBookInfo = GSON.toJson(bookInfoRule)
-        source.ruleToc = GSON.toJson(tocRule)
-        source.ruleContent = GSON.toJson(contentRule)
+        source.ruleSearch = searchRule
+        source.ruleExplore = exploreRule
+        source.ruleBookInfo = bookInfoRule
+        source.ruleToc = tocRule
+        source.ruleContent = contentRule
         return source
     }
 
@@ -350,7 +356,7 @@ class BookSourceEditActivity :
         return true
     }
 
-    override fun sendText(text: String) {
+    private fun insertText(text: String) {
         if (text.isBlank()) return
         val view = window.decorView.findFocus()
         if (view is EditText) {
@@ -362,6 +368,14 @@ class BookSourceEditActivity :
             } else {
                 edit.replace(start, end, text)//光标所在位置插入文字
             }
+        }
+    }
+
+    override fun sendText(text: String) {
+        if (text == AppConst.keyboardToolChars[0]) {
+            insertText(AppConst.urlOption)
+        } else {
+            insertText(text)
         }
     }
 

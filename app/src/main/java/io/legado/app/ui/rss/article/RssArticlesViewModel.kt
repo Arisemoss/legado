@@ -16,9 +16,9 @@ class RssArticlesViewModel(application: Application) : BaseViewModel(application
     var isLoading = true
     var order = System.currentTimeMillis()
     private var nextPageUrl: String? = null
-    private val articles = arrayListOf<RssArticle>()
     var sortName: String = ""
     var sortUrl: String = ""
+    var page = 1
 
     fun init(bundle: Bundle?) {
         bundle?.let {
@@ -27,10 +27,10 @@ class RssArticlesViewModel(application: Application) : BaseViewModel(application
         }
     }
 
-
     fun loadContent(rssSource: RssSource) {
         isLoading = true
-        Rss.getArticles(sortName, sortUrl, rssSource, null)
+        page = 1
+        Rss.getArticles(sortName, sortUrl, rssSource, page)
             .onSuccess(Dispatchers.IO) {
                 nextPageUrl = it.nextPageUrl
                 it.articles.let { list ->
@@ -49,37 +49,49 @@ class RssArticlesViewModel(application: Application) : BaseViewModel(application
                     isLoading = false
                 }
             }.onError {
+                it.printStackTrace()
                 toast(it.localizedMessage)
             }
     }
 
     fun loadMore(rssSource: RssSource) {
         isLoading = true
+        page++
         val pageUrl = nextPageUrl
         if (!pageUrl.isNullOrEmpty()) {
-            Rss.getArticles(sortName, pageUrl, rssSource, pageUrl)
+            Rss.getArticles(sortName, pageUrl, rssSource, page)
                 .onSuccess(Dispatchers.IO) {
                     nextPageUrl = it.nextPageUrl
-                    it.articles.let { list ->
-                        if (list.isEmpty()) {
-                            loadFinally.postValue(true)
-                            return@let
-                        }
-                        if (articles.contains(list.first())) {
-                            loadFinally.postValue(false)
-                        } else {
-                            list.forEach { rssArticle ->
-                                rssArticle.order = order--
-                            }
-                            App.db.rssArticleDao().insert(*list.toTypedArray())
-                        }
-                    }
-                    isLoading = false
+                    loadMoreSuccess(it.articles)
+                }
+                .onError {
+                    it.printStackTrace()
+                    loadFinally.postValue(false)
                 }
         } else {
             loadFinally.postValue(false)
         }
     }
 
+    private fun loadMoreSuccess(articles: MutableList<RssArticle>) {
+        articles.let { list ->
+            if (list.isEmpty()) {
+                loadFinally.postValue(false)
+                return@let
+            }
+            val firstArticle = list.first()
+            val dbArticle = App.db.rssArticleDao()
+                .get(firstArticle.origin, firstArticle.link)
+            if (dbArticle != null) {
+                loadFinally.postValue(false)
+            } else {
+                list.forEach { rssArticle ->
+                    rssArticle.order = order--
+                }
+                App.db.rssArticleDao().insert(*list.toTypedArray())
+            }
+        }
+        isLoading = false
+    }
 
 }

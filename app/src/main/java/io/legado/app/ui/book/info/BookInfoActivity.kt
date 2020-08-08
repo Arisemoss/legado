@@ -23,6 +23,8 @@ import io.legado.app.help.BlurTransformation
 import io.legado.app.help.ImageLoader
 import io.legado.app.help.IntentDataHelp
 import io.legado.app.lib.dialogs.alert
+import io.legado.app.lib.theme.backgroundColor
+import io.legado.app.lib.theme.bottomBackground
 import io.legado.app.ui.audio.AudioPlayActivity
 import io.legado.app.ui.book.changecover.ChangeCoverDialog
 import io.legado.app.ui.book.changesource.ChangeSourceDialog
@@ -32,6 +34,7 @@ import io.legado.app.ui.book.info.edit.BookInfoEditActivity
 import io.legado.app.ui.book.read.ReadBookActivity
 import io.legado.app.ui.book.search.SearchActivity
 import io.legado.app.ui.book.source.edit.BookSourceEditActivity
+import io.legado.app.ui.widget.image.CoverImageView
 import io.legado.app.utils.dp
 import io.legado.app.utils.getViewModel
 import io.legado.app.utils.gone
@@ -58,6 +61,10 @@ class BookInfoActivity :
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         title_bar.transparent()
+        arc_view.setBgColor(backgroundColor)
+        ll_info.setBackgroundColor(backgroundColor)
+        scroll_view.setBackgroundColor(backgroundColor)
+        fl_action.setBackgroundColor(bottomBackground)
         viewModel.bookData.observe(this, Observer { showBook(it) })
         viewModel.chapterListData.observe(this, Observer { upLoading(false, it) })
         viewModel.initData(intent)
@@ -86,6 +93,9 @@ class BookInfoActivity :
             R.id.menu_refresh -> {
                 upLoading(true)
                 viewModel.bookData.value?.let {
+                    if (it.isLocalBook()) {
+                        it.tocUrl = ""
+                    }
                     viewModel.loadBookInfo(it)
                 }
             }
@@ -138,7 +148,7 @@ class BookInfoActivity :
     }
 
     private fun defaultCover(): RequestBuilder<Drawable> {
-        return ImageLoader.load(this, R.drawable.image_cover_default)
+        return ImageLoader.load(this, CoverImageView.defaultDrawable)
             .apply(bitmapTransform(BlurTransformation(this, 25)))
     }
 
@@ -349,7 +359,7 @@ class BookInfoActivity :
         super.onActivityResult(requestCode, resultCode, data)
         when (requestCode) {
             requestCodeSourceEdit -> if (resultCode == Activity.RESULT_OK) {
-                viewModel.initData(intent)
+                viewModel.upEditBook()
             }
             requestCodeChapterList -> if (resultCode == Activity.RESULT_OK) {
                 viewModel.bookData.value?.let {

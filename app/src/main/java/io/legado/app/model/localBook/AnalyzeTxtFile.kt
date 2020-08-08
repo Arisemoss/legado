@@ -1,6 +1,5 @@
 package io.legado.app.model.localBook
 
-import android.content.Context
 import android.net.Uri
 import io.legado.app.App
 import io.legado.app.data.entities.Book
@@ -19,8 +18,8 @@ class AnalyzeTxtFile {
     private lateinit var charset: Charset
 
     @Throws(Exception::class)
-    fun analyze(context: Context, book: Book): ArrayList<BookChapter> {
-        val bookFile = getBookFile(context, book)
+    fun analyze(book: Book): ArrayList<BookChapter> {
+        val bookFile = getBookFile(book)
         book.charset = EncodingDetect.getEncode(bookFile)
         charset = book.fileCharset()
         val rulePattern = if (book.tocUrl.isNotEmpty()) {
@@ -40,6 +39,7 @@ class AnalyzeTxtFile {
         book: Book,
         pattern: Pattern?
     ): ArrayList<BookChapter> {
+        bookStream.seek(0)
         val toc = arrayListOf<BookChapter>()
         var tocRule: TxtTocRule? = null
         val rulePattern = pattern ?: let {
@@ -83,7 +83,8 @@ class AnalyzeTxtFile {
                     //获取章节内容
                     val chapterContent = blockContent.substring(seekPos, chapterStart)
                     val chapterLength = chapterContent.toByteArray(charset).size
-                    if (chapterLength > 30000 && pattern == null) {
+                    val lastStart = toc.lastOrNull()?.start ?: 0
+                    if (curOffset + chapterLength - lastStart > 50000 && pattern == null) {
                         //移除不匹配的规则
                         tocRules.remove(tocRule)
                         return analyze(bookStream, book, null)
@@ -138,6 +139,11 @@ class AnalyzeTxtFile {
                     }
                     //设置指针偏移
                     seekPos += chapterContent.length
+                }
+                if (seekPos == 0 && length > 50000 && pattern == null) {
+                    //移除不匹配的规则
+                    tocRules.remove(tocRule)
+                    return analyze(bookStream, book, null)
                 }
             } else { //进行本地虚拟分章
                 //章节在buffer的偏移量
@@ -198,7 +204,7 @@ class AnalyzeTxtFile {
             val bean = toc[i]
             bean.index = i
             bean.bookUrl = book.bookUrl
-            bean.url = (MD5Utils.md5Encode16(book.originName + i + bean.title) ?: "")
+            bean.url = (MD5Utils.md5Encode16(book.originName + i + bean.title))
         }
         book.latestChapterTitle = toc.last().title
         book.totalChapterNum = toc.size
@@ -246,7 +252,7 @@ class AnalyzeTxtFile {
         }
 
         fun getContent(book: Book, bookChapter: BookChapter): String {
-            val bookFile = getBookFile(App.INSTANCE, book)
+            val bookFile = getBookFile(book)
             //获取文件流
             val bookStream = RandomAccessFile(bookFile, "r")
             val content = ByteArray((bookChapter.end!! - bookChapter.start!!).toInt())
@@ -255,13 +261,13 @@ class AnalyzeTxtFile {
             return String(content, book.fileCharset())
         }
 
-        private fun getBookFile(context: Context, book: Book): File {
+        private fun getBookFile(book: Book): File {
             if (book.bookUrl.isContentPath()) {
                 val uri = Uri.parse(book.bookUrl)
                 val bookFile = FileUtils.getFile(cacheFolder, book.originName, subDirs = *arrayOf())
                 if (!bookFile.exists()) {
                     bookFile.createNewFile()
-                    DocumentUtils.readBytes(context, uri)?.let {
+                    DocumentUtils.readBytes(App.INSTANCE, uri)?.let {
                         bookFile.writeBytes(it)
                     }
                 }
@@ -271,18 +277,20 @@ class AnalyzeTxtFile {
         }
 
         private fun getTocRules(): List<TxtTocRule> {
-            val rules = App.db.txtTocRule().all
+            val rules = App.db.txtTocRule().enabled
             if (rules.isEmpty()) {
-                return getDefaultRules()
+                return getDefaultEnabledRules()
             }
             return rules
         }
 
-        fun getDefaultRules(): List<TxtTocRule> {
+        fun getDefaultEnabledRules(): List<TxtTocRule> {
             App.INSTANCE.assets.open("txtTocRule.json").readBytes().let { byteArray ->
-                GSON.fromJsonArray<TxtTocRule>(String(byteArray))?.let {
-                    App.db.txtTocRule().insert(*it.toTypedArray())
-                    return it
+                GSON.fromJsonArray<TxtTocRule>(String(byteArray))?.let { txtTocRules ->
+                    App.db.txtTocRule().insert(*txtTocRules.toTypedArray())
+                    return txtTocRules.filter {
+                        it.enable
+                    }
                 }
             }
             return emptyList()

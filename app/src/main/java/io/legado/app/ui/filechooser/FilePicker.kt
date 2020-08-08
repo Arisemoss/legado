@@ -8,6 +8,7 @@ import io.legado.app.base.BaseActivity
 import io.legado.app.help.permission.Permissions
 import io.legado.app.help.permission.PermissionsCompat
 import io.legado.app.lib.dialogs.alert
+import io.legado.app.utils.applyTint
 import io.legado.app.utils.toast
 import org.jetbrains.anko.toast
 
@@ -47,7 +48,7 @@ object FilePicker {
                     }
                 }
             }
-        }.show()
+        }.show().applyTint()
     }
 
     fun selectFolder(
@@ -84,14 +85,14 @@ object FilePicker {
                         }
                     }
                 }
-            }.show()
+            }.show().applyTint()
     }
 
     fun selectFile(
         activity: BaseActivity,
         requestCode: Int,
         title: String = activity.getString(R.string.select_file),
-        type: String,
+        type: Array<String>,
         allowExtensions: Array<String>?,
         default: (() -> Unit)? = null
     ) {
@@ -107,7 +108,7 @@ object FilePicker {
                     1 -> {
                         try {
                             val intent = createSelectFileIntent()
-                            intent.type = type//设置类型
+                            intent.putExtra(Intent.EXTRA_MIME_TYPES, type)
                             activity.startActivityForResult(intent, requestCode)
                         } catch (e: java.lang.Exception) {
                             e.printStackTrace()
@@ -124,14 +125,14 @@ object FilePicker {
                     }
                 }
             }
-        }.show()
+        }.show().applyTint()
     }
 
     fun selectFile(
         fragment: Fragment,
         requestCode: Int,
         title: String = fragment.getString(R.string.select_file),
-        type: String,
+        type: Array<String>,
         allowExtensions: Array<String>,
         default: (() -> Unit)? = null
     ) {
@@ -148,7 +149,7 @@ object FilePicker {
                         1 -> {
                             try {
                                 val intent = createSelectFileIntent()
-                                intent.type = type//设置类型
+                                intent.putExtra(Intent.EXTRA_MIME_TYPES, type)
                                 fragment.startActivityForResult(intent, requestCode)
                             } catch (e: java.lang.Exception) {
                                 e.printStackTrace()
@@ -165,13 +166,14 @@ object FilePicker {
                         }
                     }
                 }
-            }.show()
+            }.show().applyTint()
     }
 
     private fun createSelectFileIntent(): Intent {
         val intent = Intent(Intent.ACTION_GET_CONTENT)
         intent.addCategory(Intent.CATEGORY_OPENABLE)
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        intent.type = "*/*"
         return intent
     }
 

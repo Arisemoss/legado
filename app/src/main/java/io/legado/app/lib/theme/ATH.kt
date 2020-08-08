@@ -5,6 +5,7 @@ import android.app.Activity
 import android.app.ActivityManager
 import android.content.Context
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.view.View
 import android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
@@ -15,8 +16,11 @@ import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager.widget.ViewPager
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import io.legado.app.App
 import io.legado.app.R
 import io.legado.app.help.AppConfig
+import io.legado.app.utils.ColorUtils
+import io.legado.app.utils.dp
 import io.legado.app.utils.getCompatColor
 import kotlinx.android.synthetic.main.activity_main.view.*
 import org.jetbrains.anko.backgroundColor
@@ -93,18 +97,13 @@ object ATH {
         }
     }
 
-    fun setLightNavigationBarAuto(activity: Activity, bgColor: Int) {
-        setLightNavigationBar(activity, ColorUtils.isColorLight(bgColor))
-    }
-
-    fun setNavigationBarColorAuto(activity: Activity) {
-        setNavigationBarColor(activity, ThemeStore.navigationBarColor(activity))
-    }
-
-    fun setNavigationBarColor(activity: Activity, color: Int) {
+    fun setNavigationBarColorAuto(
+        activity: Activity,
+        color: Int = ThemeStore.navigationBarColor(activity)
+    ) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             activity.window.navigationBarColor = color
-            setLightNavigationBarAuto(activity, color)
+            setLightNavigationBar(activity, ColorUtils.isColorLight(color))
         }
     }
 
@@ -143,6 +142,7 @@ object ATH {
     }
 
     fun setAlertDialogTint(dialog: AlertDialog): AlertDialog {
+        dialog.window?.setBackgroundDrawable(getDialogBackground())
         val colorStateList = Selector.colorBuild()
             .setDefaultColor(ThemeStore.accentColor(dialog.context))
             .setPressedColor(ColorUtils.darkenColor(ThemeStore.accentColor(dialog.context)))
@@ -230,6 +230,13 @@ object ATH {
             is ViewPager -> setEdgeEffectColor(view, ThemeStore.primaryColor(view.context))
             is ScrollView -> setEdgeEffectColor(view, ThemeStore.primaryColor(view.context))
         }
+    }
+
+    fun getDialogBackground(): GradientDrawable {
+        val background = GradientDrawable()
+        background.cornerRadius = 3F.dp
+        background.setColor(App.INSTANCE.backgroundColor)
+        return background
     }
 
     private val DEFAULT_EFFECT_FACTORY = object : RecyclerView.EdgeEffectFactory() {
