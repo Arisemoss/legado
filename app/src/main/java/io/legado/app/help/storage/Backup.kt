@@ -23,8 +23,16 @@ object Backup {
 
     val backupFileNames by lazy {
         arrayOf(
-            "bookshelf.json", "bookGroup.json", "bookSource.json", "rssSource.json",
-            "rssStar.json", "replaceRule.json", ReadBookConfig.readConfigFileName, "config.xml"
+            "bookshelf.json",
+            "bookmark.json",
+            "bookGroup.json",
+            "bookSource.json",
+            "rssSource.json",
+            "rssStar.json",
+            "replaceRule.json",
+            "txtTocRule.json",
+            ReadBookConfig.readConfigFileName,
+            "config.xml"
         )
     }
 
@@ -42,11 +50,13 @@ object Backup {
         withContext(IO) {
             synchronized(this@Backup) {
                 writeListToJson(App.db.bookDao().all, "bookshelf.json", backupPath)
+                writeListToJson(App.db.bookmarkDao().all, "bookmark.json", backupPath)
                 writeListToJson(App.db.bookGroupDao().all, "bookGroup.json", backupPath)
                 writeListToJson(App.db.bookSourceDao().all, "bookSource.json", backupPath)
                 writeListToJson(App.db.rssSourceDao().all, "rssSource.json", backupPath)
                 writeListToJson(App.db.rssStarDao().all, "rssStar.json", backupPath)
                 writeListToJson(App.db.replaceRuleDao().all, "replaceRule.json", backupPath)
+                writeListToJson(App.db.txtTocRule().all, "txtTocRule.json", backupPath)
                 GSON.toJson(ReadBookConfig.configList)?.let {
                     FileUtils.createFileIfNotExist(backupPath + File.separator + ReadBookConfig.readConfigFileName)
                         .writeText(it)

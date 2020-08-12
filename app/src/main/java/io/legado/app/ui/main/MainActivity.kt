@@ -15,6 +15,7 @@ import io.legado.app.base.VMBaseActivity
 import io.legado.app.constant.EventBus
 import io.legado.app.constant.PreferKey
 import io.legado.app.help.AppConfig
+import io.legado.app.help.BookHelp
 import io.legado.app.help.storage.Backup
 import io.legado.app.lib.theme.ATH
 import io.legado.app.service.BaseReadAloudService
@@ -146,6 +147,11 @@ class MainActivity : VMBaseActivity<MainViewModel>(R.layout.activity_main),
         }
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        BookHelp.clearRemovedCache()
+    }
+
     override fun observeLiveBus() {
         observeEvent<String>(EventBus.RECREATE) {
             recreate()
@@ -156,6 +162,9 @@ class MainActivity : VMBaseActivity<MainViewModel>(R.layout.activity_main),
             if (AppConfig.isShowRSS) {
                 view_pager_main.setCurrentItem(3, false)
             }
+        }
+        observeEvent<String>(PreferKey.threadCount) {
+            viewModel.upPool()
         }
     }
 

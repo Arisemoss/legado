@@ -113,6 +113,9 @@ object Restore {
             fileToListT<Book>(path, "bookshelf.json")?.let {
                 App.db.bookDao().insert(*it.toTypedArray())
             }
+            fileToListT<Bookmark>(path, "bookmark.json")?.let {
+                App.db.bookmarkDao().insert(*it.toTypedArray())
+            }
             fileToListT<BookGroup>(path, "bookGroup.json")?.let {
                 App.db.bookGroupDao().insert(*it.toTypedArray())
             }
@@ -127,6 +130,9 @@ object Restore {
             }
             fileToListT<ReplaceRule>(path, "replaceRule.json")?.let {
                 App.db.replaceRuleDao().insert(*it.toTypedArray())
+            }
+            fileToListT<TxtTocRule>(path, "txtTocRule.json")?.let {
+                App.db.txtTocRule().insert(*it.toTypedArray())
             }
         }
     }
