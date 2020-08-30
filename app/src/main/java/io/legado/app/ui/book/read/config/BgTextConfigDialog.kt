@@ -9,10 +9,7 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.util.DisplayMetrics
-import android.view.Gravity
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import androidx.documentfile.provider.DocumentFile
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -47,10 +44,10 @@ class BgTextConfigDialog : BaseDialogFragment() {
         super.onStart()
         val dm = DisplayMetrics()
         activity?.let {
-            Help.upSystemUiVisibility(it)
             it.windowManager?.defaultDisplay?.getMetrics(dm)
         }
         dialog?.window?.let {
+            it.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
             it.setBackgroundDrawableResource(R.color.background)
             it.decorView.setPadding(0, 5, 0, 0)
             val attr = it.attributes
@@ -91,7 +88,7 @@ class BgTextConfigDialog : BaseDialogFragment() {
         adapter.addHeaderView(headerView)
         headerView.tv_name.text = getString(R.string.select_image)
         headerView.iv_bg.setImageResource(R.drawable.ic_image)
-        headerView.iv_bg.setColorFilter(getCompatColor(R.color.tv_text_default))
+        headerView.iv_bg.setColorFilter(getCompatColor(R.color.primaryText))
         headerView.onClick { selectImage() }
         requireContext().assets.list("bg/")?.let {
             adapter.setItems(it.toList())
@@ -102,7 +99,7 @@ class BgTextConfigDialog : BaseDialogFragment() {
         sw_dark_status_icon.onCheckedChange { buttonView, isChecked ->
             if (buttonView?.isPressed == true) {
                 setStatusIconDark(isChecked)
-                activity?.let {
+                activity?.window?.let {
                     Help.upSystemUiVisibility(it)
                 }
             }

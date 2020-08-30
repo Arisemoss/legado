@@ -4,23 +4,19 @@ import android.annotation.SuppressLint
 import android.content.DialogInterface
 import android.os.Bundle
 import android.util.DisplayMetrics
-import android.view.Gravity
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import androidx.core.view.get
-import androidx.fragment.app.DialogFragment
 import io.legado.app.R
+import io.legado.app.base.BaseDialogFragment
 import io.legado.app.constant.EventBus
 import io.legado.app.constant.PreferKey
-import io.legado.app.help.AppConfig
 import io.legado.app.help.ReadBookConfig
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.dialogs.selector
 import io.legado.app.lib.theme.accentColor
 import io.legado.app.lib.theme.bottomBackground
+import io.legado.app.lib.theme.getPrimaryTextColor
 import io.legado.app.lib.theme.primaryColor
-import io.legado.app.ui.book.read.Help
 import io.legado.app.ui.book.read.ReadBookActivity
 import io.legado.app.ui.widget.font.FontSelectDialog
 import io.legado.app.utils.*
@@ -31,7 +27,7 @@ import org.jetbrains.anko.sdk27.listeners.onCheckedChange
 import org.jetbrains.anko.sdk27.listeners.onClick
 import org.jetbrains.anko.sdk27.listeners.onLongClick
 
-class ReadStyleDialog : DialogFragment(), FontSelectDialog.CallBack {
+class ReadStyleDialog : BaseDialogFragment(), FontSelectDialog.CallBack {
 
     val callBack get() = activity as? ReadBookActivity
 
@@ -39,10 +35,10 @@ class ReadStyleDialog : DialogFragment(), FontSelectDialog.CallBack {
         super.onStart()
         val dm = DisplayMetrics()
         activity?.let {
-            Help.upSystemUiVisibility(it)
             it.windowManager?.defaultDisplay?.getMetrics(dm)
         }
         dialog?.window?.let {
+            it.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
             it.setBackgroundDrawableResource(R.color.background)
             it.decorView.setPadding(0, 0, 0, 0)
             val attr = it.attributes
@@ -61,8 +57,7 @@ class ReadStyleDialog : DialogFragment(), FontSelectDialog.CallBack {
         return inflater.inflate(R.layout.dialog_read_book_style, container)
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
+    override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
         initView()
         initData()
         initViewEvent()
@@ -74,7 +69,13 @@ class ReadStyleDialog : DialogFragment(), FontSelectDialog.CallBack {
     }
 
     private fun initView() {
-        root_view.setBackgroundColor(requireContext().bottomBackground)
+        val bg = requireContext().bottomBackground
+        val isLight = ColorUtils.isColorLight(bg)
+        val textColor = requireContext().getPrimaryTextColor(isLight)
+        tv_page_anim.setTextColor(textColor)
+        tv_bg_ts.setTextColor(textColor)
+        tv_share_layout.setTextColor(textColor)
+        root_view.setBackgroundColor(bg)
         dsb_text_size.valueFormat = {
             (it + 5).toString()
         }
@@ -202,9 +203,6 @@ class ReadStyleDialog : DialogFragment(), FontSelectDialog.CallBack {
             upStyle()
             upBg()
             postEvent(EventBus.UP_CONFIG, true)
-        }
-        if (AppConfig.isEInkMode) {
-            toast(R.string.e_ink_change_bg)
         }
     }
 

@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Build
+import android.provider.Settings
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.multidex.MultiDexApplication
@@ -34,15 +35,18 @@ class App : MultiDexApplication() {
         @JvmStatic
         lateinit var db: AppDatabase
             private set
-    }
 
-    var versionCode = 0
-    var versionName = ""
+        lateinit var androidId: String
+        var versionCode = 0
+        var versionName = ""
+    }
 
     override fun onCreate() {
         super.onCreate()
         INSTANCE = this
+        androidId = Settings.System.getString(contentResolver, Settings.Secure.ANDROID_ID)
         CrashHandler().init(this)
+        LanguageUtils.setConfigurationOld(this)
         db = AppDatabase.createDatabase(INSTANCE)
         packageManager.getPackageInfo(packageName, 0)?.let {
             versionCode = it.versionCode
@@ -62,7 +66,8 @@ class App : MultiDexApplication() {
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         when (newConfig.uiMode and Configuration.UI_MODE_NIGHT_MASK) {
-            Configuration.UI_MODE_NIGHT_YES, Configuration.UI_MODE_NIGHT_NO -> applyDayNight()
+            Configuration.UI_MODE_NIGHT_YES,
+            Configuration.UI_MODE_NIGHT_NO -> applyDayNight()
         }
     }
 
@@ -91,12 +96,8 @@ class App : MultiDexApplication() {
                     background = getCompatColor(R.color.md_grey_900)
                     putPrefInt(PreferKey.cNBackground, background)
                 }
-                var bBackground =
+                val bBackground =
                     getPrefInt(PreferKey.cNBBackground, getCompatColor(R.color.md_grey_850))
-                if (ColorUtils.isColorLight(bBackground)) {
-                    bBackground = getCompatColor(R.color.md_grey_850)
-                    putPrefInt(PreferKey.cNBBackground, bBackground)
-                }
                 ThemeStore.editTheme(this)
                     .coloredNavigationBar(true)
                     .primaryColor(ColorUtils.withAlpha(primary, 1f))
@@ -107,7 +108,7 @@ class App : MultiDexApplication() {
             }
             else -> {
                 val primary =
-                    getPrefInt(PreferKey.cPrimary, getCompatColor(R.color.md_indigo_800))
+                    getPrefInt(PreferKey.cPrimary, getCompatColor(R.color.md_brown_500))
                 val accent =
                     getPrefInt(PreferKey.cAccent, getCompatColor(R.color.md_red_600))
                 var background =
@@ -116,12 +117,8 @@ class App : MultiDexApplication() {
                     background = getCompatColor(R.color.md_grey_100)
                     putPrefInt(PreferKey.cBackground, background)
                 }
-                var bBackground =
+                val bBackground =
                     getPrefInt(PreferKey.cBBackground, getCompatColor(R.color.md_grey_200))
-                if (!ColorUtils.isColorLight(bBackground)) {
-                    bBackground = getCompatColor(R.color.md_grey_200)
-                    putPrefInt(PreferKey.cBBackground, bBackground)
-                }
                 ThemeStore.editTheme(this)
                     .coloredNavigationBar(true)
                     .primaryColor(ColorUtils.withAlpha(primary, 1f))

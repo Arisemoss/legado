@@ -49,13 +49,11 @@ object HttpHelper {
         return null
     }
 
-    fun getBytes(url: String, referrer: String): ByteArray? {
+    fun getBytes(url: String, queryMap: Map<String, String>, headers: Map<String, String>): ByteArray? {
         NetworkUtils.getBaseUrl(url)?.let { baseUrl ->
-            val headers =
-                mapOf(Pair(AppConst.UA_NAME, AppConst.userAgent), Pair("Referrer", referrer))
             return getByteRetrofit(baseUrl)
                 .create(HttpGetApi::class.java)
-                .getMapByte(url, mapOf(), headers)
+                .getMapByte(url, queryMap, headers)
                 .execute()
                 .body()
         }
@@ -83,6 +81,10 @@ object HttpHelper {
 
     inline fun <reified T> getApiService(baseUrl: String, encode: String? = null): T {
         return getRetrofit(baseUrl, encode).create(T::class.java)
+    }
+
+    inline fun <reified T> getBytesApiService(baseUrl: String): T {
+        return getByteRetrofit(baseUrl).create(T::class.java)
     }
 
     fun getRetrofit(baseUrl: String, encode: String? = null): Retrofit {

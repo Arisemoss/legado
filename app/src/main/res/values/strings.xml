@@ -92,7 +92,7 @@
         \u3000\u3000 This is an open source reading software newly developed by Kotlin, welcome to join us. Follow the WeChat Official Account [开源阅读]！
     </string>
     <string name="app_share_description">
-        Legado (YueDu 3.0) download link：\n https://play.google.com/store/apps/details?id=io.legado.app
+        Legado (YueDu 3.0) download link：\n https://play.google.com/store/apps/details?id=io.legado.play.release
     </string>
     <string name="version_name">Version %s</string>
     <string name="pt_auto_refresh">Auto-refresh</string>
@@ -321,7 +321,7 @@
     <string name="book_info_edit">Edit book infomation</string>
     <string name="ps_default_read">Use Bookshelf as start page</string>
     <string name="pt_default_read">Auto jump to Recent list</string>
-    <string name="use_to">Replacement object. Book name or source name is available</string>
+    <string name="use_to">Replacement object. Book name or source url is available</string>
     <string name="menu_action_group">Groups</string>
     <string name="download_path">Cache path</string>
     <string name="cleanCache">Clear cache</string>
@@ -547,7 +547,7 @@
     <string name="timer_m">%d min</string>
     <string name="brightness_auto">Auto-Brightness %s</string>
     <string name="read_aloud_by_page">Speak by pages</string>
-    <string name="read_aloud_on_line">Online Speech</string>
+    <string name="speak_engine">Speak Engine</string>
     <string name="bg_image">Background images</string>
     <string name="bg_color">Background color</string>
     <string name="text_color">Text color</string>
@@ -557,6 +557,7 @@
     <string name="group_edit">Group editing</string>
     <string name="move_to_group">Move to group</string>
     <string name="add_group">Add to Groups</string>
+    <string name="remove_group">Remove from Groups</string>
     <string name="add_replace_rule">New replacement</string>
     <string name="group">Group</string>
     <string name="group_s">Group: %s</string>
@@ -742,5 +743,14 @@
     <string name="accent_text_diff">强调色不能和文字颜色相似</string>
     <string name="wrong_format">格式不对</string>
     <string name="error">错误</string>
+    <string name="show_brightness_view">显示亮度调节控件</string>
+    <string name="language">语言</string>
+    <string name="import_rss_source">导入订阅源</string>
+    <string name="donate_summary">您的支持是我更新的动力</string>
+    <string name="about_summary">公众号[开源阅读软件]</string>
+    <string name="read_record">阅读记录</string>
+    <string name="read_record_summary">阅读时间记录</string>
+    <string name="local_tts">本地TTS</string>
+    <string name="thread_count">线程数</string>
 
 </resources>

@@ -9,7 +9,6 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.widget.Toolbar
-import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import io.legado.app.R
 import io.legado.app.base.BaseDialogFragment
@@ -41,13 +40,17 @@ class ImportRssSourceActivity : VMBaseActivity<ImportRssSourceViewModel>(
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         rotate_loading.show()
-        viewModel.errorLiveData.observe(this, Observer {
+        viewModel.errorLiveData.observe(this, {
             rotate_loading.hide()
             errorDialog(it)
         })
-        viewModel.successLiveData.observe(this, Observer {
+        viewModel.successLiveData.observe(this, {
             rotate_loading.hide()
-            successDialog()
+            if (it > 0) {
+                successDialog()
+            } else {
+                errorDialog(getString(R.string.wrong_format))
+            }
         })
         initData()
     }
@@ -129,7 +132,7 @@ class ImportRssSourceActivity : VMBaseActivity<ImportRssSourceViewModel>(
         }
 
         override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
-            tool_bar.title = "导入书源"
+            tool_bar.title = getString(R.string.import_rss_source)
             initMenu()
             arguments?.let {
                 adapter = SourcesAdapter(requireContext())

@@ -39,7 +39,8 @@ object Restore {
         "readConfig",
         PreferKey.themeMode,
         PreferKey.bookshelfLayout,
-        PreferKey.showRss
+        PreferKey.showRss,
+        PreferKey.threadCount
     )
 
     //忽略标题
@@ -47,7 +48,8 @@ object Restore {
         App.INSTANCE.getString(R.string.read_config),
         App.INSTANCE.getString(R.string.theme_mode),
         App.INSTANCE.getString(R.string.bookshelf_layout),
-        App.INSTANCE.getString(R.string.show_rss)
+        App.INSTANCE.getString(R.string.show_rss),
+        App.INSTANCE.getString(R.string.thread_count)
     )
 
     //默认忽略keys
@@ -134,6 +136,23 @@ object Restore {
             fileToListT<TxtTocRule>(path, "txtTocRule.json")?.let {
                 App.db.txtTocRule().insert(*it.toTypedArray())
             }
+            fileToListT<ReadRecord>(path, "readRecord.json")?.let {
+                it.forEach { readRecord ->
+                    //判断是不是本机记录
+                    if (readRecord.androidId != App.androidId) {
+                        App.db.readRecordDao().insert(readRecord)
+                    } else {
+                        val time = App.db.readRecordDao()
+                            .getReadTime(readRecord.androidId, readRecord.bookName)
+                        if (time == null || time < readRecord.readTime) {
+                            App.db.readRecordDao().insert(readRecord)
+                        }
+                    }
+                }
+            }
+            fileToListT<HttpTTS>(path, "httpTTS.json")?.let {
+                App.db.httpTTSDao().insert(*it.toTypedArray())
+            }
         }
     }
 
@@ -188,6 +207,7 @@ object Restore {
             if (!BuildConfig.DEBUG) {
                 LauncherIconHelp.changeIcon(App.INSTANCE.getPrefString(PreferKey.launcherIcon))
             }
+            LanguageUtils.setConfigurationOld(App.INSTANCE)
             App.INSTANCE.applyDayNight()
             postEvent(EventBus.SHOW_RSS, "")
             postEvent(EventBus.RECREATE, "")
@@ -201,6 +221,7 @@ object Restore {
             PreferKey.themeMode == key && ignoreThemeMode -> false
             PreferKey.bookshelfLayout == key && ignoreBookshelfLayout -> false
             PreferKey.showRss == key && ignoreShowRss -> false
+            PreferKey.threadCount == key && ignoreThreadCount -> false
             else -> true
         }
     }
@@ -213,6 +234,8 @@ object Restore {
         get() = ignoreConfig[PreferKey.bookshelfLayout] == true
     private val ignoreShowRss: Boolean
         get() = ignoreConfig[PreferKey.showRss] == true
+    private val ignoreThreadCount: Boolean
+        get() = ignoreConfig[PreferKey.threadCount] == true
 
     fun saveIgnoreConfig() {
         val json = GSON.toJson(ignoreConfig)
