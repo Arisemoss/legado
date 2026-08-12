@@ -19,6 +19,7 @@ import io.legado.app.R
 import io.legado.app.base.VMBaseActivity
 import io.legado.app.constant.AppPattern
 import io.legado.app.data.entities.BookSource
+import io.legado.app.ai.ui.AiSourceOptimizeDialog
 import io.legado.app.help.IntentDataHelp
 import io.legado.app.help.ItemTouchCallback
 import io.legado.app.lib.dialogs.*
@@ -121,6 +122,9 @@ class BookSourceActivity : VMBaseActivity<BookSourceViewModel>(R.layout.activity
             }
             R.id.menu_disabled_group -> {
                 search_view.setQuery(getString(R.string.disabled), true)
+            }
+            R.id.menu_ai_optimize -> {
+                AiSourceOptimizeDialog(this).show()
             }
         }
         if (item.groupId == R.id.source_group) {

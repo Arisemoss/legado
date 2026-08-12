@@ -20,6 +20,7 @@ import io.legado.app.data.entities.SearchBook
 import io.legado.app.data.entities.SearchKeyword
 import io.legado.app.lib.theme.*
 import io.legado.app.ui.book.info.BookInfoActivity
+import io.legado.app.ai.ui.AiSearchDialog
 import io.legado.app.ui.book.source.manage.BookSourceActivity
 import io.legado.app.ui.widget.recycler.LoadMoreView
 import io.legado.app.utils.*
@@ -82,6 +83,9 @@ class SearchActivity : VMBaseActivity<SearchViewModel>(R.layout.activity_book_se
                 }
             }
             R.id.menu_source_manage -> startActivity<BookSourceActivity>()
+            R.id.menu_ai_search -> {
+                AiSearchDialog(this).show()
+            }
             else -> if (item.groupId == R.id.source_group) {
                 item.isChecked = true
                 if (item.title.toString() == getString(R.string.all_source)) {
