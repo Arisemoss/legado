@@ -92,4 +92,10 @@
         android:title="@string/import_by_qr_code"
         app:showAsAction="never" />
 
+    <item
+        android:id="@+id/menu_ai_optimize"
+        android:icon="@drawable/ic_ai_search"
+        android:title="AI 分析"
+        app:showAsAction="always" />
+
 </menu>

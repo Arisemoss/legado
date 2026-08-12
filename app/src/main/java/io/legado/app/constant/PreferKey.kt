@@ -62,4 +62,8 @@ object PreferKey {
     const val cNBackground = "colorBackgroundNight"
     const val cNBBackground = "colorBottomBackgroundNight"
 
+    // AI settings
+    const val aiBaseUrl = "ai_base_url"
+    const val aiApiKey = "ai_api_key"
+    const val aiModel = "ai_model"
 }
