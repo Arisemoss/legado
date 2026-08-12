@@ -42,9 +42,13 @@ object BookSearchTool {
                     )
                 ),
                 executor = { args ->
-                    val keyword = args["keyword"]?.toString() ?: return@ToolRegistry.Tool.executor "{\"error\": \"缺少搜索关键词\"}"
-                    val maxResults = (args["maxResults"] as? Number)?.toInt() ?: 20
-                    searchBooksInternal(keyword, maxResults)
+                    val keyword = args["keyword"]?.toString()
+                    if (keyword == null) {
+                        "{\"error\": \"缺少搜索关键词\"}"
+                    } else {
+                        val maxResults = (args["maxResults"] as? Number)?.toInt() ?: 20
+                        searchBooksInternal(keyword, maxResults)
+                    }
                 }
             )
         )

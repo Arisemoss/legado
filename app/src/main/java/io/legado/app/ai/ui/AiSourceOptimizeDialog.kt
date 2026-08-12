@@ -89,14 +89,11 @@ class AiSourceOptimizeDialog(private val context: Context) {
                 progressBar.visibility = View.GONE
                 resultText.visibility = View.VISIBLE
 
-                result.fold(
-                    onSuccess = { reply ->
-                        resultText.text = reply
-                    },
-                    onFailure = { error ->
-                        resultText.text = "分析失败: ${error.message}"
-                    }
-                )
+                if (result != null) {
+                    resultText.text = result
+                } else {
+                    resultText.text = "分析失败，请检查 AI 配置是否正确。"
+                }
 
                 urlInput.isEnabled = true
                 dialog?.getButton(AlertDialog.BUTTON_POSITIVE)?.isEnabled = true

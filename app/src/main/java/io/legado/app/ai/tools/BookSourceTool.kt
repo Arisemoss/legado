@@ -37,8 +37,12 @@ object BookSourceTool {
                     )
                 ),
                 executor = { args ->
-                    val sourceUrl = args["sourceUrl"]?.toString() ?: return@ToolRegistry.Tool.executor "{\"error\": \"缺少书源URL\"}"
-                    analyzeSourceInternal(sourceUrl)
+                    val sourceUrl = args["sourceUrl"]?.toString()
+                    if (sourceUrl == null) {
+                        "{\"error\": \"缺少书源URL\"}"
+                    } else {
+                        analyzeSourceInternal(sourceUrl)
+                    }
                 }
             )
         )

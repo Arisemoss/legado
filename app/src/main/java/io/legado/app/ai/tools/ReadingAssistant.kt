@@ -35,17 +35,21 @@ object ReadingAssistant {
                     )
                 ),
                 executor = { args ->
-                    val text = args["text"]?.toString() ?: return@ToolRegistry.Tool.executor "{\"error\": \"缺少文本内容\"}"
-                    val context = args["context"]?.toString() ?: ""
-                    // 返回结构化数据供 LLM 组织回答
-                    """
-                    {
-                        "text": "${ToolUtils.escapeJson(text.take(500))}",
-                        "context": "${ToolUtils.escapeJson(context)}",
-                        "textLength": ${text.length},
-                        "hasContext": ${context.isNotBlank()}
+                    val text = args["text"]?.toString()
+                    if (text == null) {
+                        "{\"error\": \"缺少文本内容\"}"
+                    } else {
+                        val context = args["context"]?.toString() ?: ""
+                        // 返回结构化数据供 LLM 组织回答
+                        """
+                        {
+                            "text": "${ToolUtils.escapeJson(text.take(500))}",
+                            "context": "${ToolUtils.escapeJson(context)}",
+                            "textLength": ${text.length},
+                            "hasContext": ${context.isNotBlank()}
+                        }
+                        """.trimIndent()
                     }
-                    """.trimIndent()
                 }
             )
         )
