@@ -13,6 +13,7 @@ import io.legado.app.App
 import io.legado.app.R
 import io.legado.app.constant.EventBus
 import io.legado.app.constant.PreferKey
+import io.legado.app.ai.ui.AiAssistantDialog
 import io.legado.app.help.AppConfig
 import io.legado.app.help.ReadBookConfig
 import io.legado.app.lib.theme.*
@@ -71,6 +72,8 @@ class ReadMenu : FrameLayout {
         fabReplaceRule.setColorFilter(textColor)
         fabNightTheme.backgroundTintList = bottomBackgroundList
         fabNightTheme.setColorFilter(textColor)
+        fabAiAssistant.backgroundTintList = bottomBackgroundList
+        fabAiAssistant.setColorFilter(textColor)
         tv_pre.setTextColor(textColor)
         tv_next.setTextColor(textColor)
         iv_catalog.setColorFilter(textColor)
@@ -179,6 +182,16 @@ class ReadMenu : FrameLayout {
 
         //替换
         fabReplaceRule.onClick { callBack?.openReplaceRule() }
+
+        //AI 助手
+        fabAiAssistant.onClick {
+            runMenuOut {
+                AiAssistantDialog(context).show(
+                    bookName = ReadBook.book?.name,
+                    content = ReadBook.curTextChapter?.getContent()
+                )
+            }
+        }
 
         //夜间模式
         fabNightTheme.onClick {

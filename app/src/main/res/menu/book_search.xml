@@ -14,4 +14,10 @@
         android:checkable="true"
         app:showAsAction="never" />
 
+<item
+        android:id="@+id/menu_ai_search"
+        android:icon="@drawable/ic_ai_search"
+        android:title="AI 搜索"
+        app:showAsAction="always" />
+
 </menu>
