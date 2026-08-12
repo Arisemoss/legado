@@ -51,9 +51,9 @@ object ModelManager {
     suspend fun chatCompletion(
         request: ChatCompletionRequest,
         config: AiModelConfig = getConfig()
-    ): Result<ChatCompletionResponse> {
+    ): ChatCompletionResponse? {
         if (config.apiKey.isBlank()) {
-            return Result.failure(IllegalStateException("请先在设置中配置 AI API Key"))
+            return null
         }
 
         return try {
@@ -69,21 +69,18 @@ object ModelManager {
                 .build()
 
             val response = httpClient.newCall(httpRequest).execute()
-            val responseBody = response.body?.string() ?: ""
+            val responseBody = response.body()?.string() ?: ""
 
             if (!response.isSuccessful) {
                 val errorMsg = try {
                     gson.fromJson(responseBody, ErrorResponse::class.java)?.message
                 } catch (_: Exception) { null }
-                return Result.failure(
-                    RuntimeException(errorMsg ?: "HTTP ${response.code}: $responseBody")
-                )
+                throw RuntimeException(errorMsg ?: "HTTP ${response.code()}: $responseBody")
             }
 
-            val result = gson.fromJson(responseBody, ChatCompletionResponse::class.java)
-            Result.success(result)
+            gson.fromJson(responseBody, ChatCompletionResponse::class.java)
         } catch (e: Exception) {
-            Result.failure(e)
+            throw e
         }
     }
 }

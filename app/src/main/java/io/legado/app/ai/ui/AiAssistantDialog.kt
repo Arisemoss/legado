@@ -100,14 +100,11 @@ class AiAssistantDialog(private val context: Context) {
                 progressBar.visibility = View.GONE
                 resultText.visibility = View.VISIBLE
 
-                result.fold(
-                    onSuccess = { reply ->
-                        resultText.text = reply
-                    },
-                    onFailure = { error ->
-                        resultText.text = "请求失败: ${error.message}"
-                    }
-                )
+                if (result != null) {
+                    resultText.text = result
+                } else {
+                    resultText.text = "请求失败，请检查 AI 配置是否正确。"
+                }
 
                 inputEdit.isEnabled = true
                 dialog?.getButton(AlertDialog.BUTTON_POSITIVE)?.isEnabled = true

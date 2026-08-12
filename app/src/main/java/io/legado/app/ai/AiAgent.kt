@@ -38,7 +38,7 @@ object AiAgent {
         systemPrompt: String = DEFAULT_SYSTEM_PROMPT,
         convId: String? = null,
         config: AiModelConfig = ModelManager.getConfig()
-    ): Result<String> = withContext(Dispatchers.IO) {
+    ): String? = withContext(Dispatchers.IO) {
         init()
 
         val conversation = if (convId != null) {
@@ -51,12 +51,7 @@ object AiAgent {
         // 添加用户消息
         ConversationManager.addMessage(conversation.id, ChatMessage(role = "user", content = userMessage))
 
-        try {
-            val result = processToolCalls(conversation.id, config, maxTurns = 5)
-            result
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        processToolCalls(conversation.id, config, maxTurns = 5)
     }
 
     /**
@@ -66,7 +61,7 @@ object AiAgent {
         convId: String,
         config: AiModelConfig,
         maxTurns: Int
-    ): Result<String> {
+    ): String? {
         var turn = 0
 
         while (turn < maxTurns) {
@@ -83,11 +78,8 @@ object AiAgent {
                 maxTokens = config.maxTokens
             )
 
-            val result = ModelManager.chatCompletion(request, config)
-            if (result.isFailure) return Result.failure(result.exceptionOrNull()!!)
-
-            val response = result.getOrNull() ?: return Result.failure(RuntimeException("空响应"))
-            val choice = response.choices?.firstOrNull() ?: return Result.failure(RuntimeException("无有效回复"))
+            val response = ModelManager.chatCompletion(request, config) ?: return null
+            val choice = response.choices?.firstOrNull() ?: return null
 
             val replyMessage = choice.message
             ConversationManager.addMessage(convId, replyMessage)
@@ -96,7 +88,7 @@ object AiAgent {
             val toolCalls = replyMessage.toolCalls
             if (toolCalls.isNullOrEmpty()) {
                 // 没有工具调用，返回最终回复
-                return Result.success(replyMessage.content ?: "")
+                return replyMessage.content ?: ""
             }
 
             // 执行工具调用
@@ -132,7 +124,7 @@ object AiAgent {
             }
         }
 
-        return Result.failure(RuntimeException("超过最大工具调用轮次"))
+        return null
     }
 
     private fun parseArguments(json: String): Map<String, Any?> {
