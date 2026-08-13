@@ -3,15 +3,13 @@
 buildscript {
     ext.kotlin_version = '1.4.0'
     repositories {
-        maven{ url 'http://maven.aliyun.com/nexus/content/groups/public/' }
-        maven{ url 'http://maven.aliyun.com/nexus/content/repositories/jcenter'}
         google()
+        mavenCentral()
         jcenter()
+        maven { url 'https://plugins.gradle.org/m2/' }
+        maven { url 'https://maven.fabric.io/public' }
         maven { url 'https://maven.aliyun.com/nexus/content/groups/public/' }
         maven { url 'https://s3.amazonaws.com/fabric-artifacts/public' }
-        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
-        maven { url 'https://maven.fabric.io/public' }
-        maven { url 'https://plugins.gradle.org/m2/' }
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:4.0.1'
@@ -24,13 +22,11 @@ buildscript {
 
 allprojects {
     repositories {
-        maven{ url 'http://maven.aliyun.com/nexus/content/groups/public/' }
-        maven{ url 'http://maven.aliyun.com/nexus/content/repositories/jcenter'}
         google()
+        mavenCentral()
         jcenter()
-        maven { url 'https://maven.aliyun.com/nexus/content/groups/public/' }
         maven { url "https://jitpack.io" }
-        maven { url 'https://maven.google.com/' }
+        maven { url 'https://maven.aliyun.com/nexus/content/groups/public/' }
         maven { url 'https://github.com/psiegman/mvn-repo/raw/master/releases' }
     }
 }
