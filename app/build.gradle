@@ -71,7 +71,7 @@ android {
         }
         android.applicationVariants.all { variant ->
             variant.outputs.all {
-                outputFileName = "${name}_${defaultConfig.versionName}.apk"
+                outputFileName = "${name}_${variant.flavorName}_${defaultConfig.versionName}.apk"
             }
         }
     }
@@ -84,6 +84,12 @@ android {
             dimension "version"
             applicationId "io.legado.play"
             manifestPlaceholders = [APP_CHANNEL_VALUE: "google"]
+        }
+        ai {
+            // 共存版：独立包名，可与原版 io.legado.app.release 同时安装
+            dimension "version"
+            applicationId "io.legado.ai"
+            manifestPlaceholders = [APP_CHANNEL_VALUE: "ai"]
         }
     }
     compileOptions {

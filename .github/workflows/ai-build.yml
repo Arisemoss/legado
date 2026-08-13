@@ -1,0 +1,54 @@
+name: Build AI Coexist APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ master ]
+    paths:
+      - 'app/build.gradle'
+      - 'app/google-services.json'
+      - 'app/src/ai/**'
+      - '.github/workflows/ai-build.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+
+      - name: Remove local proxy settings (broken in CI)
+        run: |
+          sed -i '/systemProp.http.proxyHost/d;/systemProp.http.proxyPort/d' gradle.properties
+          echo "--- gradle.properties after cleanup ---"
+          cat gradle.properties
+
+      - name: Ensure Android SDK 29 components
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "platforms;android-29" "build-tools;29.0.3" >/dev/null 2>&1 || true
+          echo "SDK ready"
+
+      - name: Configure release signing
+        run: |
+          cp .github/workflows/legado.jks app/legado.jks
+          printf '\nRELEASE_STORE_FILE=./legado.jks\nRELEASE_KEY_ALIAS=legado\nRELEASE_STORE_PASSWORD=gedoor_legado\nRELEASE_KEY_PASSWORD=gedoor_legado\n' >> gradle.properties
+
+      - name: Build AI coexist release APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleAiRelease --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: legado-ai-apk
+          path: app/build/outputs/apk/ai/release/
+          if-no-files-found: error
