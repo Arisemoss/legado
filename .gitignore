@@ -7,6 +7,7 @@
 /captures
 .externalNativeBuild
 /release
+/release-apk
 /tmp
 node_modules/
 /app/app
