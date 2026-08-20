@@ -183,7 +183,7 @@
                 android:id="@+id/ll_bottom_bg"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@color/background_menu"
+                android:background="@drawable/bg_read_menu_glass"
                 android:orientation="vertical">
                 <!--章节设置-->
                 <LinearLayout
