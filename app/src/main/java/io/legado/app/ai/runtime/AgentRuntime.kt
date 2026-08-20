@@ -3,10 +3,14 @@ package io.legado.app.ai.runtime
 import io.legado.app.ai.model.ChatMessage
 import io.legado.app.ai.model.FunctionCall
 import io.legado.app.ai.model.ToolCall
+import io.legado.app.ai.model.ToolResult
 import io.legado.app.ai.model.ToolResultState
+import io.legado.app.ai.model.AgentError
+import io.legado.app.ai.model.AgentErrorCode
 import io.legado.app.ai.tool.ConfirmRequest
 import io.legado.app.ai.tool.ToolContext
 import io.legado.app.ai.tool.ToolRegistry
+import com.google.gson.Gson
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
@@ -105,7 +109,22 @@ class AgentRuntime(
                             ToolResultState.PENDING_CONFIRM -> {
                                 ctx.onConfirmRequested.value = ConfirmRequest(call.id, res.args)
                                 val approved = awaitApproval(ctx, call.id)
-                                messages += executor.toolMessage(call, result, approved)
+                                val finalResult = if (approved) {
+                                    try {
+                                        res.def.onApproved(ctx, res.args)
+                                    } catch (e: Exception) {
+                                        ToolResult(
+                                            text = "{\"error\":${Gson().toJson(e.localizedMessage)}}",
+                                            error = AgentError(AgentErrorCode.TOOL_FAILED, "onApproved")
+                                        )
+                                    }
+                                } else {
+                                    ToolResult(
+                                        text = Gson().toJson(mapOf("status" to "denied", "tool" to res.def.id)),
+                                        error = AgentError(AgentErrorCode.NO_PERMISSION, "user rejected")
+                                    )
+                                }
+                                messages += executor.toolMessage(call, finalResult)
                             }
                             else -> messages += executor.toolMessage(call, result)
                         }

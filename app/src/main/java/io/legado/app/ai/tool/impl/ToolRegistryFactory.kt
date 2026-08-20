@@ -26,5 +26,9 @@ fun buildRegistry(bridge: AiBridge): ToolRegistry {
     r.register(GetSourceStatsTool(bridge.sourceAnalyzer))
     r.register(TestBookSourceTool(bridge.sourceAnalyzer))
     r.register(SuggestSourceFixTool(bridge.sourceAnalyzer))
+    // 书架
+    r.register(ListShelfTool(bridge))
+    r.register(OpenBookTool(bridge))
+    r.register(RemoveBookTool(bridge))
     return r
 }

@@ -41,6 +41,9 @@ class AgentHubViewModel(
     val typing = MutableStateFlow(false)
     val confirm = MutableStateFlow<ConfirmRequest?>(null)
 
+    /** 导航通道：工具发出 AppNav 后，宿主 Activity 轮询消费并真实跳转 */
+    val navigation get() = ctx.onNavigate
+
     private var turns = ArrayList<Pair<String, String>>()
     private var collectorJob: Job? = null
 

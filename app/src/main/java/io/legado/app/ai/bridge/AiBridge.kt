@@ -7,5 +7,6 @@ package io.legado.app.ai.bridge
 class AiBridge(
     val bookFetcher: BookFetcher,
     val chapterReader: ChapterReader,
-    val sourceAnalyzer: BookSourceAnalyzer
+    val sourceAnalyzer: BookSourceAnalyzer,
+    val appController: AppController
 )

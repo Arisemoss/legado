@@ -1,6 +1,7 @@
 package io.legado.app.ai
 
 import io.legado.app.ai.bridge.AiBridge
+import io.legado.app.ai.bridge.DefaultAppController
 import io.legado.app.ai.bridge.DefaultBookFetcher
 import io.legado.app.ai.bridge.DefaultBookSourceAnalyzer
 import io.legado.app.ai.bridge.DefaultChapterReader
@@ -37,7 +38,8 @@ object AiPlatform {
         bridge = AiBridge(
             bookFetcher = DefaultBookFetcher(),
             chapterReader = DefaultChapterReader(),
-            sourceAnalyzer = DefaultBookSourceAnalyzer()
+            sourceAnalyzer = DefaultBookSourceAnalyzer(),
+            appController = DefaultAppController()
         )
         runtime = AgentRuntime(
             client = client,
