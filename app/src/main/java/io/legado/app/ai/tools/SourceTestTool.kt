@@ -111,9 +111,10 @@ object SourceTestTool {
                     sourceUrl = source.bookSourceUrl,
                     ok = true,
                     reachable = true,
-                    message = results.isEmpty()
-                        ? "连接正常，但关键词“$keyword”未搜索到结果"
-                        : "连接正常，搜索到 ${results.size} 条结果",
+                    message = if (results.isEmpty())
+                        "连接正常，但关键词“$keyword”未搜索到结果"
+                    else
+                        "连接正常，搜索到 ${results.size} 条结果",
                     latencyMs = latency,
                     searchCount = results.size,
                     sampleNames = sampleNames,
