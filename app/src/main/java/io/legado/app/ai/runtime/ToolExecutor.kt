@@ -9,6 +9,8 @@ import io.legado.app.ai.model.ToolResult
 import io.legado.app.ai.model.ToolResultState
 import io.legado.app.ai.tool.ToolContext
 import io.legado.app.ai.tool.ToolRegistry
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Pi 内核风格的 ToolExecutor 三阶段流水线：
@@ -23,7 +25,11 @@ sealed class ToolResolution {
     data class Error(val toolName: String, val message: String) : ToolResolution()
 }
 
-class ToolExecutor(private val registry: ToolRegistry) {
+class ToolExecutor(
+    private val registry: ToolRegistry,
+    private val toolTimeoutMs: Long = 20_000L,
+    private val maxToolRetries: Int = 1
+) {
 
     /** 阶段①：解析 arguments JSON 并按工具 schema 校验必填 / 枚举取值。 */
     fun resolve(call: ToolCallData): ToolResolution {
@@ -36,15 +42,55 @@ class ToolExecutor(private val registry: ToolRegistry) {
         return ToolResolution.Ready(def, raw)
     }
 
-    /** 阶段②：执行工具；任何异常都收敛为「失败」的 ToolResult，避免中断 Agent 循环。 */
-    suspend fun invoke(def: ToolDefinition, ctx: ToolContext, args: Map<String, Any>): ToolResult = try {
-        def.execute(ctx, args)
-    } catch (e: Exception) {
-        ToolResult(
-            text = jsonError(def.id, e.localizedMessage ?: "tool error"),
+    /**
+     * 阶段②：DeepSeek Harness 风格工具管道——
+     *  前置策略守卫（写/确认类工具在无确认上下文时前置拒绝）→ 单工具超时 → 有限重试。
+     * 任何异常/超时都收敛为「失败」的 ToolResult，避免中断 Agent 循环。
+     */
+    suspend fun invoke(def: ToolDefinition, ctx: ToolContext, args: Map<String, Any>): ToolResult {
+        if (def.manualConfirm && !ctx.allowConfirm) {
+            return ToolResult(
+                text = """{"status":"denied","tool":"${def.id}","reason":"需要用户确认但当前不可确认"}""",
+                state = ToolResultState.OK
+            )
+        }
+        return withTimeoutOrNull(toolTimeoutMs) {
+            runWithRetry(def, ctx, args)
+        } ?: ToolResult(
+            text = jsonError(def.id, "工具执行超时（>${toolTimeoutMs / 1000}s）"),
             state = ToolResultState.OK,
-            error = AgentError(AgentErrorCode.TOOL_FAILED, "tool error")
+            error = AgentError(AgentErrorCode.RETRYABLE_TIMEOUT, "tool timeout")
         )
+    }
+
+    private suspend fun runWithRetry(
+        def: ToolDefinition,
+        ctx: ToolContext,
+        args: Map<String, Any>
+    ): ToolResult {
+        var attempt = 0
+        while (true) {
+            val r = try {
+                def.execute(ctx, args)
+            } catch (e: AgentException) {
+                ToolResult(
+                    text = jsonError(def.id, e.message ?: "tool error"),
+                    state = ToolResultState.OK,
+                    error = AgentError(e.code, e.message ?: "tool error")
+                )
+            } catch (e: Exception) {
+                ToolResult(
+                    text = jsonError(def.id, e.localizedMessage ?: "tool error"),
+                    state = ToolResultState.OK,
+                    error = AgentError(AgentErrorCode.TOOL_FAILED, "tool error")
+                )
+            }
+            // 写/确认类工具绝不自动重试；确定性错误不重试
+            if (r.state == ToolResultState.PENDING_CONFIRM || def.manualConfirm) return r
+            if (r.error == null || !r.error.code.retryable || attempt >= maxToolRetries) return r
+            attempt++
+            delay(300L * attempt) // 退避 0.3s, 0.6s...
+        }
     }
 
     /** 阶段③：生成回喂给模型的标准 tool 消息；[approved]=false 时回填拒绝结果。 */
