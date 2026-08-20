@@ -1,5 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+	<string-array name="ai_provider_entries">
+		<item>DeepSeek</item>
+		<item>通义千问</item>
+		<item>智谱 GLM</item>
+		<item>OpenAI</item>
+		<item>Ollama (本地)</item>
+	</string-array>
+	<string-array name="ai_provider_values">
+		<item>deepseek</item>
+		<item>tongyi</item>
+		<item>zhipu</item>
+		<item>openai</item>
+		<item>ollama</item>
+	</string-array>
 	<string-array name="book_type">
 		<item>@string/book_type_text</item>
 		<item>@string/book_type_audio</item>

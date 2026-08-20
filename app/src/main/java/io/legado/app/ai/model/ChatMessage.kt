@@ -78,5 +78,9 @@ data class AiModelConfig(
     val baseUrl: String = "https://api.openai.com/v1",
     val apiKey: String = "",
     val temperature: Double = 0.7,
-    val maxTokens: Int = 4096
+    val maxTokens: Int = 4096,
+    val stream: Boolean = false,
+    val timeoutMillis: Long = 120_000L,
+    val maxRounds: Int = 5,
+    val sessionWindow: Int = 50
 )

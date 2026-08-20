@@ -2,6 +2,7 @@ package io.legado.app.ai
 
 import com.google.gson.Gson
 import io.legado.app.ai.model.*
+import io.legado.app.ai.runtime.AiKeyStore
 import io.legado.app.constant.PreferKey
 import io.legado.app.utils.getPrefString
 import io.legado.app.utils.putPrefString
@@ -28,21 +29,26 @@ object ModelManager {
     }
 
     fun getConfig(): AiModelConfig {
-        val baseUrl = io.legado.app.App.INSTANCE.getPrefString(PreferKey.aiBaseUrl)
+        val prefs = io.legado.app.App.INSTANCE
+        val baseUrl = prefs.getPrefString(PreferKey.aiBaseUrl)
             ?: "https://api.openai.com/v1"
-        val apiKey = io.legado.app.App.INSTANCE.getPrefString(PreferKey.aiApiKey) ?: ""
-        val model = io.legado.app.App.INSTANCE.getPrefString(PreferKey.aiModel) ?: "gpt-4o-mini"
+        val model = prefs.getPrefString(PreferKey.aiModel) ?: "gpt-4o-mini"
         return AiModelConfig(
             name = model,
             baseUrl = baseUrl,
-            apiKey = apiKey
+            apiKey = AiKeyStore.getApiKey(),
+            stream = prefs.getPrefString(PreferKey.aiStream) == "true",
+            timeoutMillis = prefs.getPrefString(PreferKey.aiTimeout)?.toLongOrNull() ?: 120_000L,
+            maxRounds = prefs.getPrefString(PreferKey.aiMaxRounds)?.toIntOrNull() ?: 5,
+            sessionWindow = prefs.getPrefString(PreferKey.aiSessionWindow)?.toIntOrNull() ?: 50
         )
     }
 
     fun saveConfig(config: AiModelConfig) {
-        io.legado.app.App.INSTANCE.putPrefString(PreferKey.aiBaseUrl, config.baseUrl)
-        io.legado.app.App.INSTANCE.putPrefString(PreferKey.aiApiKey, config.apiKey)
-        io.legado.app.App.INSTANCE.putPrefString(PreferKey.aiModel, config.name)
+        val prefs = io.legado.app.App.INSTANCE
+        prefs.putPrefString(PreferKey.aiBaseUrl, config.baseUrl)
+        AiKeyStore.putApiKey(config.apiKey)
+        prefs.putPrefString(PreferKey.aiModel, config.name)
     }
 
     /**
