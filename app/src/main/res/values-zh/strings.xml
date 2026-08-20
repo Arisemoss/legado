@@ -31,6 +31,8 @@
     <string name="replace">替换</string>
     <string name="replace_purify">替换净化</string>
     <string name="replace_purify_desc">配置替换净化规则</string>
+    <string name="ai_agent_title">AI 智能助手</string>
+    <string name="ai_agent_summary">模型配置、小说技能、对话与工具确认</string>
     <string name="not_available">暂无</string>
     <string name="enable">启用</string>
     <string name="replace_purify_search">替换净化-搜索</string>

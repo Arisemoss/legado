@@ -19,6 +19,14 @@
         android:icon="@drawable/ic_cfg_replace"
         app:iconSpaceReserved="false" />
 
+    <io.legado.app.ui.widget.prefs.Preference
+        android:key="ai_agent_hub"
+        android:title="@string/ai_agent_title"
+        android:summary="@string/ai_agent_summary"
+        android:icon="@drawable/ic_ai_search"
+        app:allowDividerBelow="false"
+        app:iconSpaceReserved="false" />
+
     <io.legado.app.ui.widget.prefs.NameListPreference
         android:defaultValue="0"
         android:entries="@array/theme_mode"
