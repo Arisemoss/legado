@@ -25,4 +25,7 @@ class ToolContext(
     val onConfirmRequested: MutableStateFlow<ConfirmRequest?> = MutableStateFlow(null)
 ) {
     val stopRequested = MutableStateFlow(false)
+
+    /** 是否允许写操作二次确认；置 false 进入「无确认」上下文，写类工具会被前置拒绝（Harness 审批分级） */
+    var allowConfirm: Boolean = true
 }
