@@ -67,4 +67,8 @@ object PreferKey {
     const val aiApiKey = "ai_api_key"
     const val aiModel = "ai_model"
     const val aiProvider = "ai_provider"
+    const val aiStream = "ai_stream"
+    const val aiTimeout = "ai_timeout"
+    const val aiMaxRounds = "ai_max_rounds"
+    const val aiSessionWindow = "ai_session_window"
 }
