@@ -1,6 +1,7 @@
 package io.legado.app.ui.book.read
 
 import android.content.Context
+import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.drawable.GradientDrawable
 import android.util.AttributeSet
@@ -13,7 +14,7 @@ import io.legado.app.App
 import io.legado.app.R
 import io.legado.app.constant.EventBus
 import io.legado.app.constant.PreferKey
-import io.legado.app.ai.ui.AiAssistantDialog
+import io.legado.app.ai.ui.AgentHubActivity
 import io.legado.app.help.AppConfig
 import io.legado.app.help.ReadBookConfig
 import io.legado.app.lib.theme.*
@@ -186,9 +187,13 @@ class ReadMenu : FrameLayout {
         //AI 助手
         fabAiAssistant.onClick {
             runMenuOut {
-                AiAssistantDialog(context).show(
-                    bookName = ReadBook.book?.name,
-                    content = ReadBook.curTextChapter?.getContent()
+                context.startActivity(
+                    Intent(context, AgentHubActivity::class.java).apply {
+                        putExtra("preset_book", ReadBook.book?.name)
+                        putExtra("preset_chapter", ReadBook.book?.durChapterTitle)
+                        putExtra("preset_content", ReadBook.curTextChapter?.getContent())
+                        putExtra("preset_source_url", ReadBook.book?.origin)
+                    }
                 )
             }
         }

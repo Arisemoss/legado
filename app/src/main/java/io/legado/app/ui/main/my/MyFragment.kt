@@ -132,6 +132,7 @@ class MyFragment : BaseFragment(R.layout.fragment_my_config), FileChooserDialog.
             when (preference?.key) {
                 "bookSourceManage" -> context?.startActivity<BookSourceActivity>()
                 "replaceManage" -> context?.startActivity<ReplaceRuleActivity>()
+                "ai_agent_hub" -> context?.startActivity<io.legado.app.ai.ui.AgentHubActivity>()
                 "setting" -> context?.startActivity<ConfigActivity>(
                     Pair("configType", ConfigViewModel.TYPE_CONFIG)
                 )
