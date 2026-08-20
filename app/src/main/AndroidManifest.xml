@@ -143,6 +143,8 @@
             android:name=".ui.main.MainActivity"
             android:alwaysRetainTaskState="true"
             android:launchMode="singleTask" />
+        <!-- AI 智能助手 Hub -->
+        <activity android:name=".ai.ui.AgentHubActivity" />
         <!-- 阅读界面 -->
         <activity
             android:name=".ui.book.read.ReadBookActivity"
