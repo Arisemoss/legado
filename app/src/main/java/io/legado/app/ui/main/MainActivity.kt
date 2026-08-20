@@ -1,5 +1,6 @@
 package io.legado.app.ui.main
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.MenuItem
@@ -68,6 +69,22 @@ class MainActivity : VMBaseActivity<MainViewModel>(R.layout.activity_main),
         view_pager_main.postDelayed({
             viewModel.postLoad()
         }, 3000)
+        handleRequestTab(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleRequestTab(intent)
+    }
+
+    /** 处理外部请求（如 AI 导航到书架）指定的 tab 切换 */
+    private fun handleRequestTab(intent: Intent?) {
+        val tab = intent?.getIntExtra("agent_select_tab", -1) ?: return
+        val count = view_pager_main.adapter?.count ?: 0
+        if (tab in 0 until count) {
+            view_pager_main.setCurrentItem(tab, false)
+        }
     }
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {

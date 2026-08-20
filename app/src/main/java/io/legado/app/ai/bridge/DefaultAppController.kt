@@ -1,6 +1,8 @@
 package io.legado.app.ai.bridge
 
 import io.legado.app.App
+import io.legado.app.constant.PreferKey
+import io.legado.app.help.AppConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -51,6 +53,55 @@ class DefaultAppController : AppController {
             } else {
                 App.db.bookDao().delete(hit)
                 mapOf("ok" to true, "message" to "已将《${hit.name}》移出书架")
+            }
+        }
+
+    override suspend fun enableSource(url: String, enabled: Boolean): Map<String, Any> =
+        withContext(Dispatchers.IO) {
+            val dao = App.db.bookSourceDao()
+            val source = dao.getBookSource(url)
+            if (source == null) {
+                mapOf("ok" to false, "message" to "书源不存在: $url")
+            } else if (source.enabled == enabled) {
+                mapOf("ok" to true, "message" to "书源《${source.bookSourceName}》已是" + if (enabled) "启用" else "禁用" + "状态")
+            } else {
+                dao.update(source.copy(enabled = enabled))
+                mapOf("ok" to true, "message" to "已" + if (enabled) "启用" else "禁用" + "《${source.bookSourceName}》")
+            }
+        }
+
+    override suspend fun getSettings(): Map<String, Any> =
+        withContext(Dispatchers.IO) {
+            mapOf<String, Any>(
+                "nightTheme" to AppConfig.isNightTheme,
+                "eInk" to AppConfig.isEInkMode,
+                "showRss" to AppConfig.isShowRSS,
+                "threadCount" to AppConfig.threadCount,
+                "importBookPath" to AppConfig.importBookPath.orEmpty()
+            )
+        }
+
+    override suspend fun setSetting(key: String, value: String): Map<String, Any> =
+        withContext(Dispatchers.IO) {
+            when (key) {
+                "nightTheme" -> {
+                    AppConfig.isNightTheme = value.toBoolean()
+                    mapOf("ok" to true, "key" to key, "value" to value)
+                }
+                "threadCount" -> {
+                    val int = value.toIntOrNull()
+                    if (int == null || int !in 1..32) {
+                        mapOf("ok" to false, "message" to "threadCount 需为 1..32 的整数")
+                    } else {
+                        AppConfig.threadCount = int
+                        mapOf("ok" to true, "key" to key, "value" to value)
+                    }
+                }
+                "$PreferKey.showRss" -> {
+                    AppConfig.isShowRSS = value.toBoolean()
+                    mapOf("ok" to true, "key" to key, "value" to value)
+                }
+                else -> mapOf("ok" to false, "message" to "不支持的设置项: $key")
             }
         }
 }

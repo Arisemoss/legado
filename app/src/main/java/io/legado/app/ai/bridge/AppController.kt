@@ -20,4 +20,13 @@ interface AppController {
     suspend fun listShelf(keyword: String?): List<Map<String, Any>>
     suspend fun locateBook(bookName: String): Map<String, Any>      // 空 map 表示未入架
     suspend fun removeFromShelf(bookName: String): Map<String, Any>
+
+    /** 书源：启用/禁用（写库） */
+    suspend fun enableSource(url: String, enabled: Boolean): Map<String, Any>
+
+    /** 设置：读取一组受控设置项 */
+    suspend fun getSettings(): Map<String, Any>
+
+    /** 设置：写入受白名单控制的设置项（越界返回 error） */
+    suspend fun setSetting(key: String, value: String): Map<String, Any>
 }
