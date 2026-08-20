@@ -8,6 +8,7 @@ on:
       - 'app/build.gradle'
       - 'app/google-services.json'
       - 'app/src/ai/**'
+      - 'app/src/main/**'
       - '.github/workflows/ai-build.yml'
 
 jobs:
