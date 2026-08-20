@@ -8,6 +8,7 @@ class ConfigViewModel(application: Application) : AndroidViewModel(application) 
         const val TYPE_CONFIG = 0
         const val TYPE_THEME_CONFIG = 1
         const val TYPE_WEB_DAV_CONFIG = 2
+        const val TYPE_AI_CONFIG = 3
     }
 
     var configType: Int = TYPE_CONFIG

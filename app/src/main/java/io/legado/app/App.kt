@@ -17,7 +17,6 @@ import io.legado.app.constant.AppConst.channelIdWeb
 import io.legado.app.constant.EventBus
 import io.legado.app.constant.PreferKey
 import io.legado.app.data.AppDatabase
-import io.legado.app.ai.AiAgent
 import io.legado.app.ai.AiPlatform
 import io.legado.app.help.ActivityHelp
 import io.legado.app.help.AppConfig
@@ -63,9 +62,7 @@ class App : MultiDexApplication() {
             .autoClear(false)
 
         registerActivityLifecycleCallbacks(ActivityHelp)
-        // 初始化 AI Agent
-        AiAgent.init()
-        // 初始化 AI 平台（Hub 运行时装配）
+        // 初始化 AI 平台（Hub 运行时装配：client/bridge/registry/runtime）
         AiPlatform.init()
     }
 
