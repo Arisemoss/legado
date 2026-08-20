@@ -113,7 +113,14 @@ class OpenAIClient(
                 )
             }
         } else null
-        return ChatCompletion(content, calls)
+        val usage = root.getAsJsonObject("usage")?.let { u ->
+            io.legado.app.ai.model.Usage(
+                promptTokens = u.get("prompt_tokens")?.asInt,
+                completionTokens = u.get("completion_tokens")?.asInt,
+                totalTokens = u.get("total_tokens")?.asInt
+            )
+        }
+        return ChatCompletion(content, calls, usage)
     }
 
     private companion object {
