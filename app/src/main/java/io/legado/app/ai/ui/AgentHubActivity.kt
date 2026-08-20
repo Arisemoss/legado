@@ -1,6 +1,7 @@
 package io.legado.app.ai.ui
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -12,6 +13,8 @@ import io.legado.app.base.BaseActivity
 import io.legado.app.base.adapter.ItemViewHolder
 import io.legado.app.base.adapter.SimpleRecyclerAdapter
 import io.legado.app.ui.book.read.ReadBookActivity
+import io.legado.app.ui.book.search.SearchActivity
+import io.legado.app.ui.main.MainActivity
 import kotlinx.android.synthetic.main.activity_agent_hub.*
 import kotlinx.android.synthetic.main.item_agent_message.view.*
 import kotlinx.coroutines.Job
@@ -30,6 +33,11 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
     private lateinit var vm: AgentHubViewModel
     private var confirmingToken: String? = null
     private val uiJobs = ArrayList<Job>()
+
+    companion object {
+        /** 指定打开 MainActivity 后切换到的 tab(index)，配合 AppNav.ToBookshelf 使用 */
+        const val EXTRA_SELECT_TAB = "agent_select_tab"
+    }
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         vm = AgentHubViewModel(readPreset())
@@ -108,7 +116,8 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
                     vm.navigation.value = null // 消费掉，避免重复跳转
                     when (nav) {
                         is AppNav.OpenBook -> openReader(nav)
-                        is AppNav.GlobalSearch, AppNav.ToBookshelf -> { /* 后续子计划 */ }
+                        is AppNav.GlobalSearch -> openSearch(nav)
+                        AppNav.ToBookshelf -> openBookshelf()
                     }
                 }
                 kotlinx.coroutines.delay(200)
@@ -125,6 +134,18 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
             return
         }
         startActivity<ReadBookActivity>(Pair("bookUrl", url), Pair("inBookshelf", true))
+    }
+
+    private fun openBookshelf() {
+        Intent(this, MainActivity::class.java).let {
+            it.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            it.putExtra(EXTRA_SELECT_TAB, 0) // 书架 tab
+            startActivity(it)
+        }
+    }
+
+    private fun openSearch(nav: AppNav.GlobalSearch) {
+        startActivity<SearchActivity>(Pair("key", nav.keyword))
     }
 
     private fun send() {
