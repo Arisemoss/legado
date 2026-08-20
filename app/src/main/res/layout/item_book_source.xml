@@ -4,8 +4,14 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:background="?android:attr/selectableItemBackground"
-    android:padding="16dp">
+    android:background="@drawable/bg_card_rounded"
+    android:foreground="?android:attr/selectableItemBackground"
+    android:layout_marginStart="12dp"
+    android:layout_marginEnd="12dp"
+    android:layout_marginTop="4dp"
+    android:layout_marginBottom="4dp"
+    android:padding="16dp"
+    android:elevation="1dp">
 
     <io.legado.app.lib.theme.view.ATECheckBox
         android:id="@+id/cb_book_source"

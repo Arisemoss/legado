@@ -3,6 +3,7 @@ package io.legado.app.ui.widget
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.util.AttributeSet
 import android.view.Menu
 import android.view.View
@@ -14,6 +15,7 @@ import io.legado.app.R
 import io.legado.app.help.AppConfig
 import io.legado.app.lib.theme.elevation
 import io.legado.app.lib.theme.primaryColor
+import io.legado.app.lib.theme.primaryColorDark
 import io.legado.app.utils.activity
 import io.legado.app.utils.navigationBarHeight
 import io.legado.app.utils.statusBarHeight
@@ -146,7 +148,11 @@ class TitleBar(context: Context, attrs: AttributeSet?) : AppBarLayout(context, a
             bottomPadding = context.navigationBarHeight
         }
 
-        backgroundColor = context.primaryColor
+        // 渐变玻璃顶栏：跟随用户主色，从 primaryColor 到 primaryColorDark 的纵向渐变
+        background = GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(context.primaryColor, context.primaryColorDark)
+        )
 
         stateListAnimator = null
         elevation = if (AppConfig.elevation < 0) {

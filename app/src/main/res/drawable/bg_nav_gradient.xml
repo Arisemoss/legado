@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 底部导航玻璃渐变：上浅下深，轻微向上提亮的面板质感 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient
+        android:angle="270"
+        android:startColor="@color/background_card"
+        android:endColor="@color/background" />
+</shape>
