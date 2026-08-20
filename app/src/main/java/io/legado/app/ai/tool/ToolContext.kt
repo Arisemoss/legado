@@ -22,7 +22,8 @@ data class ConfirmRequest(val confirmToken: String, val proposal: Map<String, An
 class ToolContext(
     var sessionId: Long,
     val preset: AiPreset = AiPreset(),
-    val onConfirmRequested: MutableStateFlow<ConfirmRequest?> = MutableStateFlow(null)
+    val onConfirmRequested: MutableStateFlow<ConfirmRequest?> = MutableStateFlow(null),
+    val onNavigate: MutableStateFlow<io.legado.app.ai.bridge.AppNav?> = MutableStateFlow(null)
 ) {
     val stopRequested = MutableStateFlow(false)
 

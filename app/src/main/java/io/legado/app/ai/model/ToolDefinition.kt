@@ -31,6 +31,13 @@ interface ToolDefinition {
     val manualConfirm: Boolean    // true => 写操作需二次确认
 
     suspend fun execute(ctx: ToolContext, args: Map<String, Any?>): ToolResult
+
+    /**
+     * 用户确认写操作后调用，返回真正写库后的结果。
+     * 默认仅回「已确认」，供不覆盖的只读工具兜底（它们不会进入 PENDING_CONFIRM）。
+     */
+    suspend fun onApproved(ctx: ToolContext, args: Map<String, Any?>): ToolResult =
+        ToolResult(text = """{"status":"approved"}""")
 }
 
 /**

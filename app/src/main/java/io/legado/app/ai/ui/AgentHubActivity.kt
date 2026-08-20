@@ -5,11 +5,13 @@ import android.os.Bundle
 import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.LinearLayoutManager
 import io.legado.app.R
+import io.legado.app.ai.bridge.AppNav
 import io.legado.app.ai.tool.AiPreset
 import io.legado.app.ai.tool.ConfirmRequest
 import io.legado.app.base.BaseActivity
 import io.legado.app.base.adapter.ItemViewHolder
 import io.legado.app.base.adapter.SimpleRecyclerAdapter
+import io.legado.app.ui.book.read.ReadBookActivity
 import kotlinx.android.synthetic.main.activity_agent_hub.*
 import kotlinx.android.synthetic.main.item_agent_message.view.*
 import kotlinx.coroutines.Job
@@ -17,6 +19,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.jetbrains.anko.sdk27.listeners.onClick
+import org.jetbrains.anko.startActivity
 
 /**
  * AI Agent Hub 中心页：会话对话 + 工具卡片回流 + 写操作二次确认 + 上下文预设注入。
@@ -98,6 +101,30 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
                 kotlinx.coroutines.delay(200)
             }
         }
+        uiJobs += launch {
+            while (isActive) {
+                val nav = vm.navigation.value
+                if (nav != null) {
+                    vm.navigation.value = null // 消费掉，避免重复跳转
+                    when (nav) {
+                        is AppNav.OpenBook -> openReader(nav)
+                        is AppNav.GlobalSearch, AppNav.ToBookshelf -> { /* 后续子计划 */ }
+                    }
+                }
+                kotlinx.coroutines.delay(200)
+            }
+        }
+    }
+
+    private fun openReader(nav: AppNav.OpenBook) {
+        val url = nav.bookUrl
+        if (url.isNullOrBlank()) {
+            android.widget.Toast.makeText(
+                this, "未定位到《${nav.bookName}》，可能未加入书架", android.widget.Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+        startActivity<ReadBookActivity>(Pair("bookUrl", url), Pair("inBookshelf", true))
     }
 
     private fun send() {
