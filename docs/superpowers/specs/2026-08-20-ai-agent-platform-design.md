@@ -166,7 +166,25 @@ idle → model_turn → tool_called ──(tool 不要求确认)──▶ model_
 - 用户已配置模型/API Key 兼容迁移；Key 迁移至 `EncryptedSharedPreferences`。
 - `manualConfirm` token 一次性，会话删除/重启即失效。
 
-## 附：评审采纳对照（简要）
+## 附 A：参考项目深挖——LangChain4j（rev.2 之后）
+
+深挖 `langchain4j/langchain4j` 源码，落地借鉴点如下：
+
+| LangChain4j 构件 | 其形态 | 映射到本设计 |
+|------------------|--------|--------------|
+| `ToolExecutionRequest` | 不可变 `id/name/arguments` | = 我们的 `tool_call` 与持久化 `AiMessage.kind=tool_call` 的 `payload` 形态 |
+| `ToolExecutor`（`@FunctionalInterface`） | `execute(request, memoryId): String` 返回喂回 LLM 的文本 | = 我们的执行原子 `execute(ToolContext): String` |
+| `executeWithContext(ToolExecutionRequest, InvocationContext)` | 默认方法扩展，携带聊天内存 ID + `InvocationParameters` | = 我们的 `ToolContext` preset 注入（当前会话 + 读书/搜索/书源 preset） |
+| `DefaultToolExecutor` | 反射 `@Tool` 方法、按 JSON Schema 解析实参 | = 我们的 `ToolDefinition.parameters`(JSON Schema) 解析与分发 |
+| `ToolExecutionResult`（`result()` 对象） | 结果可携带结构化对象，不止文本 | = 我们的 `payload` 结构化 `tool_result` |
+| 手动审批 | **无独立 `Approve` 类**，在 flow/executor 层用结果标记/流程编排实现 | 印证：**异步 `pending_confirm` 更贴合**，优于同步等待类 |
+
+**结论（影响设计）**
+1. LangChain4j 的 `ToolExecutor` 一线设计验证了「工具＝`请求→结果` 纯函数 + 上下文预设」的抽象，与我们的 `ToolDefinition`+`ToolContext` 一致。可将其作为模型层可参考基线。
+2. 其审批为同步等待类语义；本设计的 **`pending_confirm` 异步状态机（第 4 节）在其之上更安全、更适合 Android**。**不照搬**，仅保留"工具由执行的返回约定触发暂停"这一概念。
+3. 错误处理：LangChain4j 回退到通用异常；我们采用**结构化错误码（第 2 节）**，更利于模型区分"重试/放弃"。
+
+## 附 B：评审采纳对照（简要）
 
 | 评审项 | 处置 |
 |--------|------|
