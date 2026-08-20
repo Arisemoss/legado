@@ -3,7 +3,7 @@ package io.legado.app.ai.tools
 import io.legado.app.App
 import io.legado.app.ai.ToolRegistry
 import io.legado.app.ai.model.FunctionDefinition
-import io.legado.app.ai.model.ToolDefinition
+import io.legado.app.ai.model.ToolSpec
 import io.legado.app.data.entities.BookSource
 import io.legado.app.data.entities.rule.*
 import io.legado.app.utils.GSON
@@ -20,7 +20,7 @@ object BookSourceTool {
         // 工具1: 分析书源
         ToolRegistry.register(
             ToolRegistry.Tool(
-                definition = ToolDefinition(
+                definition = ToolSpec(
                     function = FunctionDefinition(
                         name = "analyze_book_source",
                         description = "分析书源的配置，检测可能的问题（如规则是否完整、URL是否可达等），返回分析报告",
@@ -50,7 +50,7 @@ object BookSourceTool {
         // 工具2: 获取书源列表
         ToolRegistry.register(
             ToolRegistry.Tool(
-                definition = ToolDefinition(
+                definition = ToolSpec(
                     function = FunctionDefinition(
                         name = "list_book_sources",
                         description = "获取当前所有书源的列表，包含名称、URL、是否启用、分组等信息",
@@ -80,7 +80,7 @@ object BookSourceTool {
         // 工具3: 书源统计
         ToolRegistry.register(
             ToolRegistry.Tool(
-                definition = ToolDefinition(
+                definition = ToolSpec(
                     function = FunctionDefinition(
                         name = "get_source_stats",
                         description = "获取书源统计信息，包括总数、各分组数量、各类型规则完整性等",
@@ -98,7 +98,7 @@ object BookSourceTool {
         // 工具4: 获取书源规则详情（供 AI 分析并给出修复建议）
         ToolRegistry.register(
             ToolRegistry.Tool(
-                definition = ToolDefinition(
+                definition = ToolSpec(
                     function = FunctionDefinition(
                         name = "get_source_rules",
                         description = "获取指定书源的完整规则配置详情（搜索/详情/目录/正文规则、URL等）。结合 test_book_source 的测试结果，可用于判断规则是否完整、是否有误。工具本身只返回规则事实，不修改任何数据",

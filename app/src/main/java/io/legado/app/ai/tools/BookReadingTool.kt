@@ -3,7 +3,7 @@ package io.legado.app.ai.tools
 import io.legado.app.App
 import io.legado.app.ai.ToolRegistry
 import io.legado.app.ai.model.FunctionDefinition
-import io.legado.app.ai.model.ToolDefinition
+import io.legado.app.ai.model.ToolSpec
 import io.legado.app.data.entities.Book
 import io.legado.app.help.BookHelp
 import io.legado.app.model.webBook.WebBook
@@ -23,7 +23,7 @@ object BookReadingTool {
         // 章节总结
         ToolRegistry.register(
             ToolRegistry.Tool(
-                definition = ToolDefinition(
+                definition = ToolSpec(
                     function = FunctionDefinition(
                         name = "summarize_chapter",
                         description = "读取指定书籍的某一章节正文并返回给AI，供其对章节内容进行总结、提炼要点、分析情节。默认使用当前阅读进度对应章节",
@@ -63,7 +63,7 @@ object BookReadingTool {
         // 人物关系分析
         ToolRegistry.register(
             ToolRegistry.Tool(
-                definition = ToolDefinition(
+                definition = ToolSpec(
                     function = FunctionDefinition(
                         name = "analyze_characters",
                         description = "读取指定书籍的章节正文并返回给AI，供其分析人物性格、梳理人物关系、追踪角色发展",

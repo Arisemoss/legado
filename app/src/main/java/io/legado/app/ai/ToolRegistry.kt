@@ -1,7 +1,7 @@
 package io.legado.app.ai
 
 import io.legado.app.ai.model.FunctionDefinition
-import io.legado.app.ai.model.ToolDefinition
+import io.legado.app.ai.model.ToolSpec
 
 /**
  * AI 工具注册中心，管理所有可被 AI Agent 调用的工具
@@ -11,7 +11,7 @@ object ToolRegistry {
     private val tools = mutableMapOf<String, Tool>()
 
     data class Tool(
-        val definition: ToolDefinition,
+        val definition: ToolSpec,
         val executor: suspend (Map<String, Any?>) -> String
     )
 
@@ -23,7 +23,7 @@ object ToolRegistry {
         tools.remove(name)
     }
 
-    fun getToolDefinitions(): List<ToolDefinition> {
+    fun getToolDefinitions(): List<ToolSpec> {
         return tools.values.map { it.definition }
     }
 

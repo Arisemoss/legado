@@ -2,7 +2,7 @@ package io.legado.app.ai.tools
 
 import io.legado.app.ai.ToolRegistry
 import io.legado.app.ai.model.FunctionDefinition
-import io.legado.app.ai.model.ToolDefinition
+import io.legado.app.ai.model.ToolSpec
 
 /**
  * AI 阅读助手工具
@@ -14,7 +14,7 @@ object ReadingAssistant {
         // 工具1: 解释文本
         ToolRegistry.register(
             ToolRegistry.Tool(
-                definition = ToolDefinition(
+                definition = ToolSpec(
                     function = FunctionDefinition(
                         name = "explain_text",
                         description = "解释指定的文本段落，提供含义分析、背景知识、修辞手法等",
@@ -57,7 +57,7 @@ object ReadingAssistant {
         // 工具2: 获取阅读建议
         ToolRegistry.register(
             ToolRegistry.Tool(
-                definition = ToolDefinition(
+                definition = ToolSpec(
                     function = FunctionDefinition(
                         name = "get_reading_tips",
                         description = "基于当前阅读内容提供阅读建议，包括理解难点、人物关系梳理、情节预测等",

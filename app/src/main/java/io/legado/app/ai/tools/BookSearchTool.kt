@@ -3,7 +3,7 @@ package io.legado.app.ai.tools
 import io.legado.app.App
 import io.legado.app.ai.ToolRegistry
 import io.legado.app.ai.model.FunctionDefinition
-import io.legado.app.ai.model.ToolDefinition
+import io.legado.app.ai.model.ToolSpec
 import io.legado.app.data.entities.SearchBook
 import io.legado.app.model.webBook.WebBook
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +20,7 @@ object BookSearchTool {
     fun register() {
         ToolRegistry.register(
             ToolRegistry.Tool(
-                definition = ToolDefinition(
+                definition = ToolSpec(
                     function = FunctionDefinition(
                         name = "search_books",
                         description = "跨多个书源搜索书籍，支持自然语言查询。返回搜索结果列表，包含书名、作者、简介、封面等信息",
