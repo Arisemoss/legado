@@ -27,6 +27,9 @@ class AgentHubViewModel(private val preset: AiPreset = AiPreset()) {
 
     private val runtime = AiPlatform.runtime
     private val ctx = ToolContext(sessionId = -1L, preset = preset)
+    private val systemPrompt: String by lazy {
+        SystemPromptBuilder(SkillRegistry()).build()
+    }
 
     val messages = MutableStateFlow<List<ChatRow>>(emptyList())
     val typing = MutableStateFlow(false)
@@ -41,7 +44,7 @@ class AgentHubViewModel(private val preset: AiPreset = AiPreset()) {
         collectorJob = scope.launch {
             while (isActive) {
                 val req = ctx.onConfirmRequested.value
-                if (req != null && confirm.value == null) {
+                if (req != null && confirm.value?.confirmToken != req.confirmToken) {
                     confirm.value = req
                 }
                 delay(200)
@@ -51,6 +54,8 @@ class AgentHubViewModel(private val preset: AiPreset = AiPreset()) {
 
     fun send(text: String, scope: CoroutineScope) {
         if (text.isBlank()) return
+        // 一次新的对话开始，清除上一次遗留的停止标志，避免会话被永久中断
+        ctx.stopRequested.value = false
         scope.launch {
             messages.value = messages.value + ChatRow("user", text)
             typing.value = true
@@ -58,18 +63,23 @@ class AgentHubViewModel(private val preset: AiPreset = AiPreset()) {
                 listOf(ChatMessage("user", u), ChatMessage("assistant", a))
             }
             val result: AgentResult = runCatching {
-                runtime.execute(text, history, ctx, SystemPromptBuilder(SkillRegistry()).build())
+                runtime.execute(text, history, ctx, systemPrompt)
             }.getOrElse {
                 AgentResult(it.localizedMessage ?: "执行出错", AgentResultState.ERROR)
             }
             turns += text to result.answer
             typing.value = false
             messages.value = messages.value + ChatRow("assistant", result.answer)
+            // 该次会话已结束，复位确认状态并清空桥接层遗留的确认源
+            confirm.value = null
+            ctx.onConfirmRequested.value = null
         }
     }
 
     fun approve(token: String, approved: Boolean) {
         runtime.approve(token, approved)
+        // 清除已消费的确认源，避免 UI 轮询重复弹出同一确认
+        ctx.onConfirmRequested.value = null
         confirm.value = null
     }
 

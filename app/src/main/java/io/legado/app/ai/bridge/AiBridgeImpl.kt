@@ -9,7 +9,9 @@ import io.legado.app.help.BookHelp
 import io.legado.app.model.webBook.WebBook
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 
 /**
  * [BookFetcher] 默认实现：跨已启用书源并行/顺序搜索，返回书名/作者/来源。
@@ -144,13 +146,52 @@ class DefaultBookSourceAnalyzer : BookSourceAnalyzer {
     override suspend fun test(url: String): Map<String, Any> = withContext(Dispatchers.IO) {
         val source = App.db.bookSourceDao().getBookSource(url)
         if (source == null) {
-            mapOf("url" to url, "status" to "missing", "message" to "书源不存在")
-        } else {
+            return@withContext mapOf(
+                "url" to url, "status" to "missing", "message" to "书源不存在"
+            )
+        }
+        val name = source.bookSourceName.ifBlank { url }
+        if (source.searchUrl.isNullOrBlank()) {
+            return@withContext mapOf(
+                "url" to url, "status" to "error", "reachable" to false,
+                "name" to name, "enabled" to source.enabled,
+                "message" to "书源没有配置搜索URL，无法验证网络连通性"
+            )
+        }
+        val start = System.currentTimeMillis()
+        try {
+            val results = withTimeout(15_000L) {
+                WebBook(source).searchBookSuspend(
+                    scope = CoroutineScope(Dispatchers.IO),
+                    key = "我的",
+                    page = 1
+                )
+            }
+            val latency = System.currentTimeMillis() - start
             mapOf(
-                "url" to url,
-                "status" to "ok",
-                "name" to source.bookSourceName,
-                "enabled" to source.enabled
+                "url" to url, "status" to "ok", "reachable" to true,
+                "name" to name, "enabled" to source.enabled,
+                "latencyMs" to latency,
+                "searchCount" to results.size,
+                "message" to if (results.isEmpty()) {
+                    "连接正常，但未搜索到结果"
+                } else {
+                    "连接正常，搜索到 ${results.size} 条结果"
+                }
+            )
+        } catch (e: TimeoutCancellationException) {
+            mapOf(
+                "url" to url, "status" to "error", "reachable" to false,
+                "name" to name, "enabled" to source.enabled,
+                "latencyMs" to (System.currentTimeMillis() - start),
+                "message" to "请求超时（>15 秒）"
+            )
+        } catch (e: Exception) {
+            mapOf(
+                "url" to url, "status" to "error", "reachable" to true,
+                "name" to name, "enabled" to source.enabled,
+                "latencyMs" to (System.currentTimeMillis() - start),
+                "message" to ("网络可达但搜索失败: " + (e.localizedMessage ?: "unknown"))
             )
         }
     }

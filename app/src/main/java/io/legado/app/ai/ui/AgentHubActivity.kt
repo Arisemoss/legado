@@ -12,6 +12,7 @@ import io.legado.app.base.adapter.ItemViewHolder
 import io.legado.app.base.adapter.SimpleRecyclerAdapter
 import kotlinx.android.synthetic.main.activity_agent_hub.*
 import kotlinx.android.synthetic.main.item_agent_message.view.*
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -25,6 +26,7 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
     private lateinit var adapter: MessageAdapter
     private lateinit var vm: AgentHubViewModel
     private var confirmingToken: String? = null
+    private val uiJobs = ArrayList<Job>()
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         vm = AgentHubViewModel(readPreset())
@@ -33,6 +35,8 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
     }
 
     override fun onDestroy() {
+        uiJobs.forEach { it.cancel() }
+        uiJobs.clear()
         runCatching { vm.dispose() }
         super.onDestroy()
     }
@@ -59,7 +63,7 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
 
     private fun initVm() {
         vm.start(this)
-        launch {
+        uiJobs += launch {
             while (isActive) {
                 val list = vm.messages.value
                 adapter.setItems(list)
@@ -69,7 +73,7 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
                 kotlinx.coroutines.delay(300)
             }
         }
-        launch {
+        uiJobs += launch {
             while (isActive) {
                 tv_typing.visibility =
                     if (vm.typing.value) {
@@ -80,7 +84,7 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
                 kotlinx.coroutines.delay(200)
             }
         }
-        launch {
+        uiJobs += launch {
             while (isActive) {
                 val req = vm.confirm.value
                 if (req != null && confirmingToken != req.confirmToken) {
