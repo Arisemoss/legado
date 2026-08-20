@@ -33,6 +33,8 @@
     <string name="replace_purify_desc">Configure replacement rules</string>
     <string name="ai_agent_title">AI Assistant</string>
     <string name="ai_agent_summary">Model config, novel skills, chat &amp; tool confirmation</string>
+    <string name="ai_agent_config_title">AI Model Config</string>
+    <string name="ai_agent_config_summary">Provider, API key, model &amp; session</string>
     <string name="not_available">Not available now</string>
     <string name="enable">Enable</string>
     <string name="replace_purify_search">Search Replacement</string>

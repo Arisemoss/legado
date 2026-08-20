@@ -20,7 +20,7 @@ data class AiPreset(
 data class ConfirmRequest(val confirmToken: String, val proposal: Map<String, Any>)
 
 class ToolContext(
-    val sessionId: Long,
+    var sessionId: Long,
     val preset: AiPreset = AiPreset(),
     val onConfirmRequested: MutableStateFlow<ConfirmRequest?> = MutableStateFlow(null)
 ) {

@@ -45,6 +45,15 @@ class ConfigActivity : VMBaseActivity<ConfigViewModel>(R.layout.activity_config)
                     .replace(R.id.configFrameLayout, configFragment, fTag)
                     .commit()
             }
+            ConfigViewModel.TYPE_AI_CONFIG -> {
+                title_bar.title = getString(R.string.ai_agent_title)
+                val fTag = "aiConfigFragment"
+                var configFragment = supportFragmentManager.findFragmentByTag(fTag)
+                if (configFragment == null) configFragment = AiConfigFragment()
+                supportFragmentManager.beginTransaction()
+                    .replace(R.id.configFrameLayout, configFragment, fTag)
+                    .commit()
+            }
         }
 
     }

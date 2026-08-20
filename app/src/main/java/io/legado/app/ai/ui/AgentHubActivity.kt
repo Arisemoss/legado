@@ -32,6 +32,10 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
         vm = AgentHubViewModel(readPreset())
         initView()
         initVm()
+        // 创建持久化会话并恢复历史（在轮询 job 启动后再执行，保证 messages 可被消费）
+        uiJobs += launch {
+            vm.init()
+        }
     }
 
     override fun onDestroy() {
