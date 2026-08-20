@@ -27,7 +27,11 @@ class ToolRegistry {
             "type" to "function",
             "function" to mapOf(
                 "name" to t.info.name,
-                "description" to t.info.description,
+                "description" to t.info.description + if (t.manualConfirm) {
+                    "（涉及数据修改，需用户确认后才生效，请先向用户说明方案与理由）"
+                } else {
+                    ""
+                },
                 "parameters" to mapOf(
                     "type" to "object",
                     "properties" to t.info.parameters.associate { p ->
