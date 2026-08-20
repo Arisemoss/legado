@@ -16,11 +16,11 @@
         android:layout_marginTop="8dp"
         tools:ignore="UnusedAttribute"
         app:layout_constraintTop_toTopOf="parent"
-        app:shadowColor="#16000000"
+        app:shadowColor="#220F2619"
         app:shadowShape="rectangle"
-        app:shadowDx="1dp"
-        app:shadowDy="3dp"
-        app:shadowRadius="4dp"
+        app:shadowDx="0dp"
+        app:shadowDy="4dp"
+        app:shadowRadius="10dp"
         app:shadowSide="all">
 
         <io.legado.app.ui.widget.image.CoverImageView
@@ -72,7 +72,8 @@
         android:textColor="@color/primaryText"
         android:textSize="13sp"
         android:textStyle="bold"
-        android:letterSpacing="0.01"
+        android:letterSpacing="0.02"
+        android:lineSpacingMultiplier="1.05"
         app:layout_constraintLeft_toLeftOf="@+id/bg_cover"
         app:layout_constraintRight_toRightOf="@+id/bg_cover"
         app:layout_constraintTop_toBottomOf="@+id/bg_cover"
