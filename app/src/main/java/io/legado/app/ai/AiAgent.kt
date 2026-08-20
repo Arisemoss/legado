@@ -5,7 +5,9 @@ import com.google.gson.reflect.TypeToken
 import io.legado.app.ai.model.*
 import io.legado.app.ai.tools.BookSearchTool
 import io.legado.app.ai.tools.BookSourceTool
+import io.legado.app.ai.tools.BookReadingTool
 import io.legado.app.ai.tools.ReadingAssistant
+import io.legado.app.ai.tools.SourceTestTool
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -28,6 +30,8 @@ object AiAgent {
         BookSearchTool.register()
         BookSourceTool.register()
         ReadingAssistant.register()
+        SourceTestTool.register()
+        BookReadingTool.register()
     }
 
     /**

@@ -94,6 +94,66 @@ object BookSourceTool {
                 getSourceStatsInternal()
             }
         )
+
+        // 工具4: 获取书源规则详情（供 AI 分析并给出修复建议）
+        ToolRegistry.register(
+            ToolRegistry.Tool(
+                definition = ToolDefinition(
+                    function = FunctionDefinition(
+                        name = "get_source_rules",
+                        description = "获取指定书源的完整规则配置详情（搜索/详情/目录/正文规则、URL等）。结合 test_book_source 的测试结果，可用于判断规则是否完整、是否有误。工具本身只返回规则事实，不修改任何数据",
+                        parameters = mapOf(
+                            "type" to "object",
+                            "properties" to mapOf(
+                                "sourceUrl" to mapOf(
+                                    "type" to "string",
+                                    "description" to "书源的 URL 地址"
+                                )
+                            ),
+                            "required" to listOf("sourceUrl")
+                        )
+                    )
+                ),
+                executor = { args ->
+                    val sourceUrl = args["sourceUrl"]?.toString()
+                    if (sourceUrl == null) {
+                        "{\"error\": \"缺少书源URL\"}"
+                    } else {
+                        getSourceRulesInternal(sourceUrl)
+                    }
+                }
+            )
+        )
+    }
+
+    private suspend fun getSourceRulesInternal(sourceUrl: String): String {
+        return withContext(Dispatchers.IO) {
+            try {
+                val source = App.db.bookSourceDao().getBookSource(sourceUrl)
+                if (source == null) {
+                    return@withContext "{\"error\": \"未找到书源: $sourceUrl\"}"
+                }
+                """
+                {
+                    "sourceName": "${ToolUtils.escapeJson(source.bookSourceName)}",
+                    "sourceUrl": "${ToolUtils.escapeJson(source.bookSourceUrl)}",
+                    "enabled": ${source.enabled},
+                    "group": "${ToolUtils.escapeJson(source.bookSourceGroup ?: "")}",
+                    "searchUrl": "${ToolUtils.escapeJson(source.searchUrl ?: "")}",
+                    "exploreUrl": "${ToolUtils.escapeJson(source.exploreUrl ?: "")}",
+                    "loginUrl": "${ToolUtils.escapeJson(source.loginUrl ?: "")}",
+                    "header": "${ToolUtils.escapeJson(source.header ?: "")}",
+                    "ruleSearch": ${GSON.toJson(source.getSearchRule())},
+                    "ruleBookInfo": ${GSON.toJson(source.getBookInfoRule())},
+                    "ruleToc": ${GSON.toJson(source.getTocRule())},
+                    "ruleContent": ${GSON.toJson(source.getContentRule())},
+                    "ruleExplore": ${GSON.toJson(source.getExploreRule())}
+                }
+                """.trimIndent()
+            } catch (e: Exception) {
+                "{\"error\": \"获取规则失败: ${e.message}\"}"
+            }
+        }
     }
 
     private suspend fun analyzeSourceInternal(sourceUrl: String): String {
