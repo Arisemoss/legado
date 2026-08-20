@@ -26,14 +26,15 @@ data class FunctionCall(
 data class ChatCompletionRequest(
     val model: String = "gpt-4o-mini",
     val messages: List<ChatMessage>,
-    val tools: List<ToolDefinition>? = null,
+    val tools: List<ToolSpec>? = null,
     val temperature: Double = 0.7,
     @SerializedName("max_tokens")
     val maxTokens: Int = 4096,
     val stream: Boolean = false
 )
 
-data class ToolDefinition(
+/** OpenAI 线格式 schema DTO（区别于 [ToolDefinition] 工具抽象接口） */
+data class ToolSpec(
     val type: String = "function",
     val function: FunctionDefinition
 )

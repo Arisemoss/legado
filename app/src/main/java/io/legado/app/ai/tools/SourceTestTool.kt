@@ -3,7 +3,7 @@ package io.legado.app.ai.tools
 import io.legado.app.App
 import io.legado.app.ai.ToolRegistry
 import io.legado.app.ai.model.FunctionDefinition
-import io.legado.app.ai.model.ToolDefinition
+import io.legado.app.ai.model.ToolSpec
 import io.legado.app.model.webBook.WebBook
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +20,7 @@ object SourceTestTool {
     fun register() {
         ToolRegistry.register(
             ToolRegistry.Tool(
-                definition = ToolDefinition(
+                definition = ToolSpec(
                     function = FunctionDefinition(
                         name = "test_book_source",
                         description = "对指定书源执行真实的连通性测试：会发起一次搜索请求，检测网站是否可达、搜索规则是否可用，返回延迟、结果数量与采样书名等信息",
