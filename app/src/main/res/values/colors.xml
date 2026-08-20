@@ -1,29 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 现代极简 + 强调色：主色采用清爽的靛蓝，配合中性底与文字 -->
-    <color name="primary">#4E5AE6</color>
-    <color name="primaryDark">#3B47CC</color>
-    <color name="accent">#4E5AE6</color>
+    <!--
+      现代暖纸质感配色（参考 olib-mobile）
+      主色：森林绿 玫瑰金点缀，暖白纸背景，四级文字灰度
+    -->
+    <color name="primary">#2D6A4F</color>
+    <color name="primaryDark">#245844</color>
+    <color name="accent">#D4816B</color>
+    <color name="primaryContainer">#E8F5EE</color>
+    <color name="accentContainer">#FBEDE7</color>
     <color name="divider">#14000000</color>
 
-    <color name="lightBlue_color">#4E5AE6</color>
+    <color name="lightBlue_color">#2D6A4F</color>
 
-    <color name="error">#eb4333</color>
-    <color name="success">#439b53</color>
+    <color name="error">#D45454</color>
+    <color name="success">#52B788</color>
 
     <color name="night_mask">#00000000</color>
 
-    <color name="background">#F5F6FA</color>
+    <!-- 暖白纸质感背景 -->
+    <color name="background">#F8F7F5</color>
     <color name="background_card">#FFFFFF</color>
-    <color name="background_menu">#ECEEF3</color>
-    <color name="background_prefs">#F8F9FB</color>
+    <color name="background_menu">#ECEEE9</color>
+    <color name="background_prefs">#F5F4F2</color>
     <color name="transparent">#00000000</color>
 
     <color name="transparent10">#10000000</color>
     <color name="transparent30">#30000000</color>
     <color name="transparent50">#50000000</color>
 
-    <color name="highlight">#d3321b</color>
+    <color name="highlight">#D4816B</color>
 
     <color name="btn_bg_press">#63ACACAC</color>
     <color name="btn_bg_press_2">#63858585</color>
@@ -32,9 +38,10 @@
     <color name="tv_btn_normal_black">#737373</color>
     <color name="tv_btn_press_black">#adadad</color>
 
-    <color name="primaryText">#1B1D26</color>
-    <color name="secondaryText">#8A8F9C</color>
-    <color name="tv_text_summary">#9AA0AE</color>
+    <!-- 四级文字灰度（green-grey） -->
+    <color name="primaryText">#1A2421</color>
+    <color name="secondaryText">#5C6B64</color>
+    <color name="tv_text_summary">#9AA89F</color>
     <color name="tv_text_book_detail">#dfdfdf</color>
     <color name="menu_color_default">#2F3139</color>
 
@@ -43,13 +50,13 @@
 
     <color name="light_translucent">#23000000</color>
     <color name="common_gray">#EEEEEE</color>
-    <color name="darker_gray">#aaaaaaaa</color>
+    <color name="darker_gray">#aaaaaa</color>
 
     <!-- 分格线背景色 -->
-    <color name="bg_divider_line">#E8EAF0</color>
+    <color name="bg_divider_line">#E3E8E5</color>
     <!--statusBarBackground-->
     <color name="status_bar_bag">#19000000</color>
-    <color name="navigation_bar_bag">#F5F6FA</color>
+    <color name="navigation_bar_bag">#F8F7F5</color>
 
     <!--base-color-->
     <color name="translucent">#99343434</color>

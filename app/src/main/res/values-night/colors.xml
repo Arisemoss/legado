@@ -1,22 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="primary">#7480FF</color>
-    <color name="primaryDark">#8A94FF</color>
-    <color name="accent">#7480FF</color>
+    <!-- 暗色：森林绿提亮变体 + 深绿灰背景 -->
+    <color name="primary">#52B788</color>
+    <color name="primaryDark">#66C79A</color>
+    <color name="accent">#D4816B</color>
+    <color name="primaryContainer">#1F3F2F</color>
+    <color name="accentContainer">#3B231C</color>
     <color name="divider">#14ffffff</color>
 
-    <color name="background">#121318</color>
-    <color name="background_card">#1B1D24</color>
-    <color name="background_menu">#23252E</color>
-    <color name="background_prefs">#181A20</color>
+    <color name="background">#121712</color>
+    <color name="background_card">#1B221C</color>
+    <color name="background_menu">#232D25</color>
+    <color name="background_prefs">#181D18</color>
 
     <color name="night_mask">#69000000</color>
+
+    <color name="lightBlue_color">#52B788</color>
 
     <color name="transparent10">#10ffffff</color>
     <color name="transparent30">#30ffffff</color>
     <color name="transparent50">#50ffffff</color>
 
-    <color name="bg_divider_line">#282A33</color>
+    <color name="bg_divider_line">#2A2F2A</color>
 
     <color name="btn_bg_press">#634D4D4D</color>
     <color name="btn_bg_press_2">#63686868</color>
@@ -27,14 +32,17 @@
     <color name="tv_btn_normal_black">#737373</color>
     <color name="tv_btn_press_black">#565656</color>
 
-    <color name="primaryText">#EFF1F6</color>
-    <color name="secondaryText">#9A9FAE</color>
-    <color name="tv_text_summary">#9A9FAE</color>
+    <color name="primaryText">#E6ECE7</color>
+    <color name="secondaryText">#B2BDB4</color>
+    <color name="tv_text_summary">#9AA89F</color>
     <color name="menu_color_default">#C6C9D2</color>
 
 
     <color name="tv_text_button_nor">#303030</color>
 
     <!--statusBarBackground-->
-    <color name="navigation_bar_bag">#121318</color>
+    <color name="navigation_bar_bag">#121712</color>
+
+    <!-- 暂存/兼容占位，引用方存在故保留 -->
+    <color name="highlight">#D4816B</color>
 </resources>
