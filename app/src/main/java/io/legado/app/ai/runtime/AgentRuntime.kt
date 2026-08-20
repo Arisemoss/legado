@@ -10,11 +10,14 @@ import io.legado.app.ai.tool.ToolRegistry
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 
 data class AgentResult(
     val answer: String,
-    val state: AgentResultState = AgentResultState.DONE
+    val state: AgentResultState = AgentResultState.DONE,
+    val tokensUsed: Long = 0L,
+    val rounds: Int = 0
 )
 
 enum class AgentResultState { DONE, STOPPED, BUDGET_EXCEEDED, ERROR }
@@ -30,6 +33,7 @@ class AgentRuntime(
     private val registry: ToolRegistry,
     private val maxRounds: Int = 5,
     private val maxTokens: Long = 32_000L,
+    private val maxRetries: Int = 1,
     private val confirmTimeoutMs: Long = 300_000L
 ) {
     private val executor = ToolExecutor(registry)
@@ -52,13 +56,18 @@ class AgentRuntime(
         messages += ChatMessage(role = "user", content = userPrompt)
 
         var billed = 0L
-        repeat(maxRounds) { _ ->
-            if (ctx.stopRequested.value) return AgentResult(lastAnswer(messages), AgentResultState.STOPPED)
+        var rounds = 0
+        repeat(maxRounds) {
+            if (ctx.stopRequested.value) {
+                return AgentResult(lastAnswer(messages), AgentResultState.STOPPED, billed, rounds)
+            }
+            rounds++
 
             val completion = try {
-                client.complete(messages, registry.toOpenAiSchema(), stream = false)
+                completeOnce(messages, ctx)
+                    ?: return AgentResult(lastAnswer(messages), AgentResultState.STOPPED, billed, rounds)
             } catch (e: AgentException) {
-                return AgentResult("模型调用失败：${e.message}", AgentResultState.ERROR)
+                return AgentResult("模型调用失败：${e.message}", AgentResultState.ERROR, billed, rounds)
             }
 
             appendAssistant(messages, completion)
@@ -66,12 +75,12 @@ class AgentRuntime(
                 ?: (256L + (completion.content?.length ?: 0) / 3L)
             billed += increment
             if (billed > maxTokens) {
-                return AgentResult(completion.content ?: "已达预算上限", AgentResultState.BUDGET_EXCEEDED)
+                return AgentResult(completion.content ?: "已达预算上限", AgentResultState.BUDGET_EXCEEDED, billed, rounds)
             }
 
             val calls = completion.toolCalls
             if (calls.isNullOrEmpty()) {
-                return AgentResult(completion.content ?: "无回复", AgentResultState.DONE)
+                return AgentResult(completion.content ?: "无回复", AgentResultState.DONE, billed, rounds)
             }
 
             // 内层①：整批解析（流水线阶段①），失败项就地回填错误消息
@@ -104,7 +113,25 @@ class AgentRuntime(
                 }
             }
         }
-        return AgentResult(lastAnswer(messages), AgentResultState.DONE)
+        return AgentResult(lastAnswer(messages), AgentResultState.DONE, billed, rounds)
+    }
+
+    /**
+     * 单次模型补全；对可重试错误做指数退避重试（默认 1 次重试），
+     * 停止标志在重试间隙同样生效。重试耗尽抛出 [AgentException]。
+     */
+    private suspend fun completeOnce(messages: List<ChatMessage>, ctx: ToolContext): ChatCompletion? {
+        var attempt = 0
+        while (true) {
+            if (ctx.stopRequested.value) return null
+            try {
+                return client.complete(messages, registry.toOpenAiSchema(), stream = false)
+            } catch (e: AgentException) {
+                if (!e.code.retryable || attempt >= maxRetries) throw e
+                attempt++
+                delay(1000L * attempt) // 退避 1s, 2s...
+            }
+        }
     }
 
     /** 把 OpenAI 返回的 messages 追加进上下文（含 tool_calls，供模型下一轮续接 tool 结果） */
