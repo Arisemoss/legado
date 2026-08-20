@@ -9,14 +9,16 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import io.legado.app.App
 import io.legado.app.data.dao.*
 import io.legado.app.data.entities.*
+import io.legado.app.data.migrate.migration_19_20
 
 
 @Database(
     entities = [Book::class, BookGroup::class, BookSource::class, BookChapter::class,
         ReplaceRule::class, SearchBook::class, SearchKeyword::class, Cookie::class,
         RssSource::class, Bookmark::class, RssArticle::class, RssReadRecord::class,
-        RssStar::class, TxtTocRule::class, ReadRecord::class, HttpTTS::class],
-    version = 19,
+        RssStar::class, TxtTocRule::class, ReadRecord::class, HttpTTS::class,
+        AiSession::class, AiMessage::class],
+    version = 20,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -36,7 +38,8 @@ abstract class AppDatabase : RoomDatabase() {
                     migration_14_15,
                     migration_15_17,
                     migration_17_18,
-                    migration_18_19
+                    migration_18_19,
+                    migration_19_20
                 )
                 .allowMainThreadQueries()
                 .build()
@@ -129,4 +132,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun txtTocRule(): TxtTocRuleDao
     abstract fun readRecordDao(): ReadRecordDao
     abstract fun httpTTSDao(): HttpTTSDao
+    abstract fun aiSessionDao(): AiSessionDao
+    abstract fun aiMessageDao(): AiMessageDao
 }
