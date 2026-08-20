@@ -72,6 +72,13 @@
         <item name="android:popupBackground">@drawable/bg_popup_menu</item>
     </style>
 
+    <!-- 书架分组 Tab：现代极简文字样式 -->
+    <style name="Style.TabText" parent="TextAppearance.Design.Tab">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.02</item>
+    </style>
+
 
     <style name="Activity.Permission" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="android:windowBackground">@android:color/transparent</item>

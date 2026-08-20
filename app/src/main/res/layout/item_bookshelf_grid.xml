@@ -4,9 +4,9 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingTop="2dp"
-    android:paddingRight="10dp"
-    android:paddingLeft="10dp">
+    android:paddingTop="4dp"
+    android:paddingRight="12dp"
+    android:paddingLeft="12dp">
 
     <io.legado.app.ui.widget.ShadowLayout
         android:id="@+id/bg_cover"
@@ -62,14 +62,17 @@
         android:layout_height="wrap_content"
         android:paddingLeft="4dp"
         android:paddingRight="4dp"
-        android:paddingBottom="4dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
         android:includeFontPadding="false"
         android:gravity="top|center_horizontal"
         android:lines="2"
         android:ellipsize="end"
         android:text="@string/book_name"
         android:textColor="@color/primaryText"
-        android:textSize="12sp"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.01"
         app:layout_constraintLeft_toLeftOf="@+id/bg_cover"
         app:layout_constraintRight_toRightOf="@+id/bg_cover"
         app:layout_constraintTop_toBottomOf="@+id/bg_cover"

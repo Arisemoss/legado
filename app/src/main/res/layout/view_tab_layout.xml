@@ -6,4 +6,10 @@
     android:layout_height="match_parent"
     app:tabBackground="@android:color/transparent"
     app:tabRippleColor="@android:color/transparent"
-    android:theme="?attr/actionBarStyle" />
+    app:tabMode="scrollable"
+    app:tabIndicatorColor="@color/accent"
+    app:tabIndicatorFullWidth="false"
+    app:tabIndicatorHeight="3dp"
+    app:tabSelectedTextColor="@color/accent"
+    app:tabTextColor="@color/secondaryText"
+    app:tabTextAppearance="@style/Style.TabText" />
