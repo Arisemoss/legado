@@ -1,17 +1,15 @@
 package io.legado.app.ai.runtime
 
-import com.google.gson.JsonParser
-import io.legado.app.ai.model.AgentError
-import io.legado.app.ai.model.AgentErrorCode
 import io.legado.app.ai.model.ChatMessage
 import io.legado.app.ai.model.FunctionCall
 import io.legado.app.ai.model.ToolCall
-import io.legado.app.ai.model.ToolResult
 import io.legado.app.ai.model.ToolResultState
 import io.legado.app.ai.tool.ConfirmRequest
 import io.legado.app.ai.tool.ToolContext
 import io.legado.app.ai.tool.ToolRegistry
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeoutOrNull
 
 data class AgentResult(
@@ -22,16 +20,19 @@ data class AgentResult(
 enum class AgentResultState { DONE, STOPPED, BUDGET_EXCEEDED, ERROR }
 
 /**
- * Agent 引擎：非流式多轮 function-calling 循环。
- * 支持中断（[ToolContext.stopRequested]）、预算上限、以及写操作 pending_confirm 异步确认。
+ * Pi Harness 风格的双嵌套 agentLoop：
+ *  - 外层：多轮助手补全（[maxRounds] 预算），产出最终答案；
+ *  - 内层：对单轮内的整批 tool_calls 并行执行后再回喂，写操作走二次确认。
+ * 工具执行经 [ToolExecutor] 三阶段流水线，真实 token 计费强制预算。
  */
 class AgentRuntime(
     private val client: ChatModelClient,
     private val registry: ToolRegistry,
     private val maxRounds: Int = 5,
-    private val maxTokens: Long = 16_000L,
+    private val maxTokens: Long = 32_000L,
     private val confirmTimeoutMs: Long = 300_000L
 ) {
+    private val executor = ToolExecutor(registry)
     private val approvals = Channel<Pair<String, Boolean>>(Channel.UNLIMITED)
 
     /** 供 UI 调用的确认入口；token 与 [ConfirmRequest.confirmToken] 对应 */
@@ -51,87 +52,68 @@ class AgentRuntime(
         messages += ChatMessage(role = "user", content = userPrompt)
 
         var billed = 0L
-        repeat(maxRounds) {
+        repeat(maxRounds) { _ ->
             if (ctx.stopRequested.value) return AgentResult(lastAnswer(messages), AgentResultState.STOPPED)
 
             val completion = try {
                 client.complete(messages, registry.toOpenAiSchema(), stream = false)
             } catch (e: AgentException) {
-                val toolMsg = ChatMessage(
-                    role = "tool",
-                    content = """{"error":{"tool":"_client","code":"${e.code.name}","retryable":${e.code.retryable}}}"""
-                )
-                messages += toolMsg
-                return AgentResult(
-                    "模型调用失败：${e.message}",
-                    if (e.code.retryable) AgentResultState.ERROR else AgentResultState.ERROR
-                )
+                return AgentResult("模型调用失败：${e.message}", AgentResultState.ERROR)
             }
 
-            billed += 512 // 占位计费，阶段2改为从响应 usage 累加
+            appendAssistant(messages, completion)
+            val increment = completion.usage?.totalTokens?.toLong()
+                ?: (256L + (completion.content?.length ?: 0) / 3L)
+            billed += increment
             if (billed > maxTokens) {
-                messages += ChatMessage("assistant", content = completion.content)
-                return AgentResult(completion.content ?: "", AgentResultState.BUDGET_EXCEEDED)
+                return AgentResult(completion.content ?: "已达预算上限", AgentResultState.BUDGET_EXCEEDED)
             }
 
-            if (completion.content != null) {
-                messages += ChatMessage(role = "assistant", content = completion.content)
+            val calls = completion.toolCalls
+            if (calls.isNullOrEmpty()) {
+                return AgentResult(completion.content ?: "无回复", AgentResultState.DONE)
             }
 
-            val calls = completion.toolCalls ?: return AgentResult(
-                completion.content ?: "无回复",
-                AgentResultState.DONE
-            )
+            // 内层①：整批解析（流水线阶段①），失败项就地回填错误消息
+            val resolutions = calls.map { executor.resolve(it) }
 
-            for (call in calls) {
-                if (ctx.stopRequested.value) return AgentResult(lastAnswer(messages), AgentResultState.STOPPED)
-                val def = registry.find(call.name) ?: continue
-
-                val args = try {
-                    parseArgs(call.arguments)
-                } catch (e: Exception) {
-                    messages += ChatMessage(
-                        role = "tool",
-                        content = """{"error":{"tool":"${call.name}","message":"参数解析失败"}}""",
-                        toolCallId = call.id
-                    )
-                    continue
+            // 内层②：整批并行执行（流水线阶段②）；异常自愈，不中断循环
+            val running = coroutineScope {
+                resolutions.map { res ->
+                    if (res is ToolResolution.Ready) async { executor.invoke(res.def, ctx, res.args) }
+                    else null
                 }
+            }
 
-                val result = try {
-                    def.execute(ctx, args)
-                } catch (e: Exception) {
-                    ToolResult(
-                        text = """{"error":{"tool":"${call.name}","message":"${e.localizedMessage ?: "tool error"}"}}""",
-                        state = ToolResultState.OK,
-                        error = AgentError(AgentErrorCode.TOOL_FAILED, "tool error")
-                    )
-                }
-
-                messages += ChatMessage(
-                    role = "assistant",
-                    content = null,
-                    toolCalls = listOf(ToolCall(call.id, "function", FunctionCall(call.name, call.arguments)))
-                )
-
-                when (result.state) {
-                    ToolResultState.PENDING_CONFIRM -> {
-                        ctx.onConfirmRequested.value = ConfirmRequest(call.id, args)
-                        if (awaitApproval(ctx, call.id)) {
-                            messages += ChatMessage(role = "tool", content = result.text, toolCallId = call.id)
-                        } else {
-                            messages += ChatMessage(
-                                role = "tool",
-                                content = """{"status":"denied","tool":"${call.name}"}""",
-                                toolCallId = call.id
-                            )
+            // 内层③：按原顺序收集并回填（流水线阶段③），写操作二次确认
+            for (i in calls.indices) {
+                val call = calls[i]
+                when (val res = resolutions[i]) {
+                    is ToolResolution.Error -> messages += executor.errorMessage(call, res.message)
+                    is ToolResolution.Ready -> {
+                        val result = running[i]?.await() ?: continue
+                        when (result.state) {
+                            ToolResultState.PENDING_CONFIRM -> {
+                                ctx.onConfirmRequested.value = ConfirmRequest(call.id, res.args)
+                                val approved = awaitApproval(ctx, call.id)
+                                messages += executor.toolMessage(call, result, approved)
+                            }
+                            else -> messages += executor.toolMessage(call, result)
                         }
                     }
-                    else -> messages += ChatMessage(role = "tool", content = result.text, toolCallId = call.id)
                 }
             }
         }
         return AgentResult(lastAnswer(messages), AgentResultState.DONE)
+    }
+
+    /** 把 OpenAI 返回的 messages 追加进上下文（含 tool_calls，供模型下一轮续接 tool 结果） */
+    private fun appendAssistant(messages: MutableList<ChatMessage>, c: ChatCompletion) {
+        messages += ChatMessage(
+            role = "assistant",
+            content = c.content,
+            toolCalls = c.toolCalls?.map { ToolCall(it.id, "function", FunctionCall(it.name, it.arguments)) }
+        )
     }
 
     private suspend fun awaitApproval(ctx: ToolContext, token: String): Boolean {
@@ -149,29 +131,5 @@ class AgentRuntime(
             if (m.role == "assistant" && !m.content.isNullOrBlank()) return m.content
         }
         return ""
-    }
-
-    /** 把 OpenAI 返回的 arguments JSON 字符串解析为扁平 Map；value 转为 String/Double/Boolean/List/Map */
-    private fun parseArgs(arguments: String): Map<String, Any> {
-        val element = JsonParser().parse(arguments)
-        if (!element.isJsonObject) return emptyMap()
-        val map = mutableMapOf<String, Any>()
-        element.asJsonObject.entrySet().forEach { (k, v) ->
-            map[k] = when {
-                v.isJsonNull -> ""
-                v.isJsonPrimitive -> {
-                    val p = v.asJsonPrimitive
-                    when {
-                        p.isString -> p.asString
-                        p.isBoolean -> p.asBoolean
-                        p.isNumber -> p.asDouble
-                        else -> p.asString
-                    }
-                }
-                v.isJsonObject -> v.asJsonObject.toString()
-                else -> v.asJsonArray.toString()
-            }
-        }
-        return map
     }
 }
