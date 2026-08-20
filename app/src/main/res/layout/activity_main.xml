@@ -8,7 +8,7 @@
         android:id="@+id/bottom_navigation_view"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:background="@color/background_card"
+        android:background="@drawable/bg_nav_gradient"
         android:elevation="12dp"
         app:labelVisibilityMode="labeled"
         app:itemIconSize="22dp"
