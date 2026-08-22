@@ -2,38 +2,199 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/ai_page_bg"
     android:orientation="vertical">
 
-    <TextView
-        android:id="@+id/tv_title"
+    <!-- 顶栏 -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="12dp"
-        android:text="AI 智能助手"
-        android:textSize="18sp"
-        android:textStyle="bold" />
+        android:background="@color/ai_header_bg"
+        android:elevation="2dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="10dp">
 
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="AI 智能助手"
+                android:textColor="@color/ai_text_main"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="未配置模型 · 点右上角设置"
+                android:textColor="@color/ai_text_sub"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/btn_sessions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/ai_bg_chip"
+            android:paddingStart="12dp"
+            android:paddingTop="6dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="6dp"
+            android:text="会话"
+            android:textColor="@color/ai_chip_text"
+            android:textSize="13sp" />
+
+        <ImageView
+            android:id="@+id/btn_new_session"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:layout_marginStart="4dp"
+            android:contentDescription="新建会话"
+            android:padding="8dp"
+            android:src="@drawable/ic_add"
+            android:tint="@color/ai_accent" />
+
+        <ImageView
+            android:id="@+id/btn_config"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:layout_marginStart="2dp"
+            android:contentDescription="AI 配置"
+            android:padding="8dp"
+            android:src="@drawable/ic_settings"
+            android:tint="@color/ai_text_sub" />
+    </LinearLayout>
+
+    <!-- 消息列表 -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_view"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
         android:clipToPadding="false"
-        android:padding="8dp" />
+        android:overScrollMode="never"
+        android:paddingBottom="8dp"
+        android:paddingTop="8dp" />
 
-    <TextView
-        android:id="@+id/tv_typing"
+    <!-- 空状态引导 -->
+    <LinearLayout
+        android:id="@+id/box_empty"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="32dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:background="@drawable/ai_bg_avatar_ai"
+            android:gravity="center"
+            android:text="AI"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center"
+            android:text="我是你的阅读助手\n可以帮你找书、读书、懂书、修书源"
+            android:textColor="@color/ai_text_sub"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <!-- 快捷指令 -->
+    <HorizontalScrollView
+        android:id="@+id/chips_scroll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingStart="12dp"
         android:paddingEnd="12dp"
-        android:text="思考中…"
-        android:textSize="12sp"
-        android:visibility="gone" />
+        android:scrollbars="none">
 
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp">
+
+            <TextView
+                android:id="@+id/chip_summarize"
+                style="@style/AiSuggestionChip"
+                android:text="总结当前章节" />
+
+            <TextView
+                android:id="@+id/chip_find_book"
+                style="@style/AiSuggestionChip"
+                android:text="帮我找书" />
+
+            <TextView
+                android:id="@+id/chip_characters"
+                style="@style/AiSuggestionChip"
+                android:text="分析人物关系" />
+
+            <TextView
+                android:id="@+id/chip_source"
+                style="@style/AiSuggestionChip"
+                android:text="诊断书源" />
+
+            <TextView
+                android:id="@+id/chip_shelf"
+                style="@style/AiSuggestionChip"
+                android:text="看看我的书架" />
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- 输入中指示 -->
+    <LinearLayout
+        android:id="@+id/typing_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:visibility="gone">
+
+        <ProgressBar
+            android:layout_width="14dp"
+            android:layout_height="14dp" />
+
+        <TextView
+            android:id="@+id/tv_typing"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="思考中…"
+            android:textColor="@color/ai_text_sub"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <!-- 输入栏 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="@color/ai_header_bg"
+        android:elevation="4dp"
+        android:gravity="bottom"
         android:orientation="horizontal"
         android:padding="8dp">
 
@@ -42,23 +203,45 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="问 AI：这段在说什么？分析人物？找书？"
-            android:imeOptions="actionSend"
-            android:inputType="text"
-            android:maxLines="4"
-            android:minLines="1" />
+            android:background="@drawable/ai_bg_input_bar"
+            android:hint="问点什么…"
+            android:inputType="textMultiLine"
+            android:maxLines="5"
+            android:minLines="1"
+            android:paddingStart="14dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="10dp"
+            android:textColor="@color/ai_text_main"
+            android:textColorHint="@color/ai_text_sub"
+            android:textSize="14sp" />
 
         <Button
             android:id="@+id/btn_stop"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="停止" />
+            android:layout_height="36dp"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/ai_bg_btn_stop"
+            android:minWidth="0dp"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:text="停止"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:visibility="gone" />
 
         <Button
             android:id="@+id/btn_send"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="发送" />
+            android:layout_height="36dp"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/ai_bg_btn_send"
+            android:minWidth="0dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:text="发送"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp" />
     </LinearLayout>
 
 </LinearLayout>
