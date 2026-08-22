@@ -1,5 +1,6 @@
 package io.legado.app.ai.tool
 
+import io.legado.app.ai.model.ToolEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
@@ -23,7 +24,8 @@ class ToolContext(
     var sessionId: Long,
     val preset: AiPreset = AiPreset(),
     val onConfirmRequested: MutableStateFlow<ConfirmRequest?> = MutableStateFlow(null),
-    val onNavigate: MutableStateFlow<io.legado.app.ai.bridge.AppNav?> = MutableStateFlow(null)
+    val onNavigate: MutableStateFlow<io.legado.app.ai.bridge.AppNav?> = MutableStateFlow(null),
+    val onToolEvent: MutableStateFlow<ToolEvent?> = MutableStateFlow(null)
 ) {
     val stopRequested = MutableStateFlow(false)
 

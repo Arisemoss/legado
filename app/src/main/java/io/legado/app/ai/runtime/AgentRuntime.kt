@@ -7,6 +7,7 @@ import io.legado.app.ai.model.ToolResult
 import io.legado.app.ai.model.ToolResultState
 import io.legado.app.ai.model.AgentError
 import io.legado.app.ai.model.AgentErrorCode
+import io.legado.app.ai.model.ToolEvent
 import io.legado.app.ai.tool.ConfirmRequest
 import io.legado.app.ai.tool.ToolContext
 import io.legado.app.ai.tool.ToolRegistry
@@ -42,6 +43,31 @@ class AgentRuntime(
 ) {
     private val executor = ToolExecutor(registry)
     private val approvals = Channel<Pair<String, Boolean>>(Channel.UNLIMITED)
+    private var eventSeq = 0L
+
+    /** 发布工具事件给 UI（实时工具卡片） */
+    private fun postEvent(
+        ctx: ToolContext,
+        callId: String,
+        toolName: String,
+        phase: String,
+        argsPreview: String = "",
+        detail: String? = null,
+        elapsedMs: Long = 0L
+    ) {
+        ctx.onToolEvent.value = ToolEvent(
+            seq = ++eventSeq,
+            callId = callId,
+            toolName = toolName,
+            phase = phase,
+            argsPreview = argsPreview,
+            detail = detail,
+            elapsedMs = elapsedMs
+        )
+    }
+
+    private fun previewArgs(args: Map<String, Any>): String =
+        runCatching { Gson().toJson(args) }.getOrDefault(args.toString()).take(160)
 
     /** 供 UI 调用的确认入口；token 与 [ConfirmRequest.confirmToken] 对应 */
     fun approve(confirmToken: String, approved: Boolean) {
@@ -90,6 +116,20 @@ class AgentRuntime(
             // 内层①：整批解析（流水线阶段①），失败项就地回填错误消息
             val resolutions = calls.map { executor.resolve(it) }
 
+            // 发布「执行中」事件并记录起始时间，供 UI 渲染实时工具卡片
+            val startTimes = HashMap<Int, Long>()
+            for (i in calls.indices) {
+                val r = resolutions[i]
+                if (r is ToolResolution.Ready) {
+                    startTimes[i] = System.currentTimeMillis()
+                    postEvent(
+                        ctx, callId = calls[i].id, toolName = r.def.id,
+                        phase = ToolEvent.PHASE_RUNNING,
+                        argsPreview = previewArgs(r.args)
+                    )
+                }
+            }
+
             // 内层②：整批并行执行（流水线阶段②）；异常自愈，不中断循环
             val running = coroutineScope {
                 resolutions.map { res ->
@@ -102,17 +142,41 @@ class AgentRuntime(
             for (i in calls.indices) {
                 val call = calls[i]
                 when (val res = resolutions[i]) {
-                    is ToolResolution.Error -> messages += executor.errorMessage(call, res.message)
+                    is ToolResolution.Error -> {
+                        postEvent(
+                            ctx, calls[i].id, calls[i].function.name,
+                            ToolEvent.PHASE_ERROR, detail = res.message.take(240)
+                        )
+                        messages += executor.errorMessage(call, res.message)
+                    }
                     is ToolResolution.Ready -> {
                         val result = running[i]?.await() ?: continue
+                        val elapsed = System.currentTimeMillis() - (startTimes[i] ?: 0L)
                         when (result.state) {
                             ToolResultState.PENDING_CONFIRM -> {
+                                postEvent(
+                                    ctx, calls[i].id, res.def.id,
+                                    ToolEvent.PHASE_CONFIRM,
+                                    argsPreview = previewArgs(res.args),
+                                    detail = "写操作待确认…"
+                                )
                                 ctx.onConfirmRequested.value = ConfirmRequest(call.id, res.args)
                                 val approved = awaitApproval(ctx, call.id)
+                                postEvent(
+                                    ctx, calls[i].id, res.def.id,
+                                    if (approved) ToolEvent.PHASE_APPROVED else ToolEvent.PHASE_DENIED,
+                                    detail = if (approved) "已确认，正在写入" else "用户拒绝执行",
+                                    elapsedMs = elapsed
+                                )
                                 val finalResult = if (approved) {
                                     try {
                                         res.def.onApproved(ctx, res.args)
                                     } catch (e: Exception) {
+                                        postEvent(
+                                            ctx, calls[i].id, res.def.id,
+                                            ToolEvent.PHASE_ERROR,
+                                            detail = e.localizedMessage?.take(240)
+                                        )
                                         ToolResult(
                                             text = "{\"error\":${Gson().toJson(e.localizedMessage)}}",
                                             error = AgentError(AgentErrorCode.TOOL_FAILED, "onApproved")
@@ -126,7 +190,15 @@ class AgentRuntime(
                                 }
                                 messages += executor.toolMessage(call, finalResult)
                             }
-                            else -> messages += executor.toolMessage(call, result)
+                            else -> {
+                                postEvent(
+                                    ctx, calls[i].id, res.def.id,
+                                    if (result.error != null) ToolEvent.PHASE_ERROR else ToolEvent.PHASE_RESULT,
+                                    detail = result.text.take(240),
+                                    elapsedMs = elapsed
+                                )
+                                messages += executor.toolMessage(call, result)
+                            }
                         }
                     }
                 }

@@ -1,18 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 	<string-array name="ai_provider_entries">
-		<item>DeepSeek</item>
-		<item>通义千问</item>
+		<item>DeepSeek（深度求索）</item>
+		<item>通义千问（阿里云百炼）</item>
 		<item>智谱 GLM</item>
+		<item>Kimi（月之暗面）</item>
+		<item>硅基流动 SiliconFlow</item>
+		<item>MiniMax（海螺）</item>
+		<item>豆包（火山方舟）</item>
 		<item>OpenAI</item>
-		<item>Ollama (本地)</item>
+		<item>OpenRouter（聚合）</item>
+		<item>Groq（极速推理）</item>
+		<item>xAI（Grok）</item>
+		<item>Ollama（本机/局域网）</item>
+		<item>LM Studio（本机）</item>
 	</string-array>
 	<string-array name="ai_provider_values">
 		<item>deepseek</item>
 		<item>tongyi</item>
 		<item>zhipu</item>
+		<item>moonshot</item>
+		<item>siliconflow</item>
+		<item>minimax</item>
+		<item>doubao</item>
 		<item>openai</item>
+		<item>openrouter</item>
+		<item>groq</item>
+		<item>xai</item>
 		<item>ollama</item>
+		<item>lmstudio</item>
 	</string-array>
 	<string-array name="book_type">
 		<item>@string/book_type_text</item>

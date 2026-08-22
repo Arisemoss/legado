@@ -7,6 +7,11 @@ import android.view.View
 import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import io.legado.app.R
+import io.legado.app.ai.ModelManager
+import io.legado.app.ai.model.AiModelConfig
+import io.legado.app.ai.model.AiProviderPresets
+import io.legado.app.ai.model.ChatCompletionRequest
+import io.legado.app.ai.model.ChatMessage
 import io.legado.app.base.BasePreferenceFragment
 import io.legado.app.constant.PreferKey
 import io.legado.app.lib.theme.ATH
@@ -14,24 +19,26 @@ import io.legado.app.lib.theme.accentColor
 import io.legado.app.ui.widget.prefs.NameListPreference
 import io.legado.app.utils.getPrefString
 import io.legado.app.utils.putPrefString
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
- * AI 配置：服务商预设 / Base URL / API Key（加密）/ 模型 / 流式 / 轮询超时 / 最大轮数 / 会话窗口
+ * AI 配置：服务商预设 / Base URL / API Key（加密）/ 模型 / 流式 / 轮询超时 / 最大轮数 / 会话窗口 / 测试连接
+ * 预设表统一来自 [AiProviderPresets]，与 Hub 状态栏共享。
  */
 class AiConfigFragment : BasePreferenceFragment(),
     SharedPreferences.OnSharedPreferenceChangeListener {
 
-    /** 服务商预设表：id -> Pair(baseUrl, 推荐模型) */
-    private val providers: Map<String, Pair<String, String>> = mapOf(
-        "deepseek" to ("https://api.deepseek.com/v1" to "deepseek-chat"),
-        "qwen" to ("https://dashscope.aliyuncs.com/compatible-mode/v1" to "qwen-plus"),
-        "zhipu" to ("https://open.bigmodel.cn/api/paas/v4" to "glm-4-flash"),
-        "openai" to ("https://api.openai.com/v1" to "gpt-4o-mini"),
-        "ollama" to ("http://localhost:11434/v1" to "llama3")
-    )
+    private val scope = CoroutineScope(Dispatchers.Main)
+    private var testJob: Job? = null
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         addPreferencesFromResource(R.xml.pref_config_ai)
+        addTestConnectionPreference()
+
         findPreference<NameListPreference>(PreferKey.aiProvider)?.setOnPreferenceChangeListener { _, newValue ->
             applyProviderPreset(newValue as? String)
             true
@@ -52,7 +59,59 @@ class AiConfigFragment : BasePreferenceFragment(),
 
     override fun onDestroy() {
         super.onDestroy()
+        testJob?.cancel()
         preferenceManager.sharedPreferences.unregisterOnSharedPreferenceChangeListener(this)
+    }
+
+    /** 动态插入「测试连接」，配完即可一键验证 */
+    private fun addTestConnectionPreference() {
+        val test = Preference(requireContext())
+        test.key = "ai_test_connection"
+        test.title = "测试连接"
+        test.summary = "用当前配置发一条测试消息，验证 Base URL / Key / 模型是否可用"
+        test.onPreferenceClickListener = Preference.OnPreferenceClickListener {
+            testConnection(test)
+            true
+        }
+        preferenceScreen.addPreference(test)
+    }
+
+    private fun testConnection(preference: Preference) {
+        val cfg = AiModelConfig(
+            name = getPrefString(PreferKey.aiModel) ?: "gpt-4o-mini",
+            baseUrl = getPrefString(PreferKey.aiBaseUrl) ?: "https://api.openai.com/v1",
+            apiKey = getPrefString(PreferKey.aiApiKey) ?: "",
+            timeoutMillis = 20_000L
+        )
+        if (cfg.apiKey.isBlank()) {
+            preference.summary = "⚠️ 请先填写 API Key"
+            return
+        }
+        preference.summary = "测试中…"
+        testJob?.cancel()
+        testJob = scope.launch {
+            val started = System.currentTimeMillis()
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    ModelManager.chatCompletion(
+                        ChatCompletionRequest(
+                            model = cfg.name,
+                            messages = listOf(ChatMessage("user", "ping")),
+                            maxTokens = 8
+                        ),
+                        config = cfg
+                    )
+                }
+            }
+            val elapsed = (System.currentTimeMillis() - started) / 1000.0
+            preference.summary = result.fold(
+                onSuccess = { resp ->
+                    val text = resp?.choices?.firstOrNull()?.message?.content.orEmpty().take(30)
+                    "✓ 连接成功（${elapsed}s）${if (text.isNotBlank()) " 回复：$text" else ""}"
+                },
+                onFailure = { "✗ 连接失败：${it.localizedMessage?.take(120)}" }
+            )
+        }
     }
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
@@ -67,9 +126,9 @@ class AiConfigFragment : BasePreferenceFragment(),
     }
 
     private fun applyProviderPreset(providerId: String?) {
-        val preset = providers[providerId] ?: return
-        ppp(PreferKey.aiBaseUrl, preset.first)
-        ppp(PreferKey.aiModel, preset.second)
+        val preset = AiProviderPresets.byId(providerId) ?: return
+        ppp(PreferKey.aiBaseUrl, preset.baseUrl)
+        preset.models.firstOrNull()?.let { ppp(PreferKey.aiModel, it) }
         upAllSummary()
     }
 
@@ -86,6 +145,16 @@ class AiConfigFragment : BasePreferenceFragment(),
         findPreference<EditTextPreference>(PreferKey.aiApiKey)?.let {
             val key = getPrefString(PreferKey.aiApiKey)
             it.summary = if (key.isNullOrEmpty()) "未设置" else "*".repeat(key.length.coerceAtMost(12))
+        }
+        // 服务商 summary 追加说明
+        val providerId = getPrefString(PreferKey.aiProvider)
+        findPreference<NameListPreference>(PreferKey.aiProvider)?.let { pref ->
+            val preset = AiProviderPresets.byId(providerId)
+            pref.summary = if (preset != null) {
+                "${preset.label} · ${preset.note}"
+            } else {
+                "选择服务商可自动填充 Base URL 与推荐模型"
+            }
         }
     }
 

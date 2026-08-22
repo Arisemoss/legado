@@ -2,51 +2,74 @@ package io.legado.app.ai.ui
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
+import android.view.View
+import android.view.ViewGroup
+import android.widget.BaseAdapter
+import android.widget.ListView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.LinearLayoutManager
 import io.legado.app.R
 import io.legado.app.ai.bridge.AppNav
+import io.legado.app.ai.model.ToolEvent
 import io.legado.app.ai.tool.AiPreset
-import io.legado.app.ai.tool.ConfirmRequest
-import io.legado.app.base.BaseActivity
+import io.legado.app.base.adapter.CommonRecyclerAdapter
 import io.legado.app.base.adapter.ItemViewHolder
-import io.legado.app.base.adapter.SimpleRecyclerAdapter
+import io.legado.app.base.adapter.ItemViewDelegate
 import io.legado.app.ui.book.read.ReadBookActivity
 import io.legado.app.ui.book.search.SearchActivity
+import io.legado.app.ui.config.ConfigActivity
+import io.legado.app.ui.config.ConfigViewModel
 import io.legado.app.ui.main.MainActivity
 import kotlinx.android.synthetic.main.activity_agent_hub.*
-import kotlinx.android.synthetic.main.item_agent_message.view.*
+import kotlinx.android.synthetic.main.ai_item_confirm.view.*
+import kotlinx.android.synthetic.main.ai_item_error.view.*
+import kotlinx.android.synthetic.main.ai_item_msg_ai.view.*
+import kotlinx.android.synthetic.main.ai_item_msg_user.view.*
+import kotlinx.android.synthetic.main.ai_item_session.view.*
+import kotlinx.android.synthetic.main.ai_item_tool.view.*
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.jetbrains.anko.sdk27.listeners.onClick
 import org.jetbrains.anko.startActivity
 
 /**
- * AI Agent Hub 中心页：会话对话 + 工具卡片回流 + 写操作二次确认 + 上下文预设注入。
+ * AI Agent Hub 中心页：气泡对话 + 实时工具卡片 + 写操作内联二次确认 +
+ * 多会话管理 + 上下文预设注入。
  */
 class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
-
-    private lateinit var adapter: MessageAdapter
-    private lateinit var vm: AgentHubViewModel
-    private var confirmingToken: String? = null
-    private val uiJobs = ArrayList<Job>()
 
     companion object {
         /** 指定打开 MainActivity 后切换到的 tab(index)，配合 AppNav.ToBookshelf 使用 */
         const val EXTRA_SELECT_TAB = "agent_select_tab"
+
+        private const val VT_USER = 0
+        private const val VT_AI = 1
+        private const val VT_TOOL = 2
+        private const val VT_ERROR = 3
+        private const val VT_CONFIRM = 4
     }
+
+    private lateinit var adapter: ChatAdapter
+    private lateinit var vm: AgentHubViewModel
+    private val uiJobs = ArrayList<Job>()
+    private var lastSize = -1
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         vm = AgentHubViewModel(readPreset())
+        adapter = ChatAdapter(this)
         initView()
         initVm()
-        // 创建持久化会话并恢复历史（在轮询 job 启动后再执行，保证 messages 可被消费）
-        uiJobs += launch {
-            vm.init()
-        }
+        uiJobs += launch { vm.init() }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 配置可能在设置页被修改，回来时热更新并刷新状态栏
+        vm.refreshStatusLine()
     }
 
     override fun onDestroy() {
@@ -66,47 +89,71 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
         )
     } ?: AiPreset()
 
+    // ---------- 视图 ----------
+
     private fun initView() {
         recycler_view.layoutManager = LinearLayoutManager(this)
-        adapter = MessageAdapter(this)
         recycler_view.adapter = adapter
 
-        btn_send.onClick { send() }
-        et_input.setOnEditorActionListener { _, _, _ -> send(); true }
+        btn_send.onClick {
+            val text = et_input.text?.toString()?.trim().orEmpty()
+            if (text.isEmpty()) return@onClick
+            et_input.setText("")
+            vm.send(text)
+        }
         btn_stop.onClick { vm.stop() }
+
+        btn_config.onClick {
+            startActivity<ConfigActivity>(Pair("configType", ConfigViewModel.TYPE_AI_CONFIG))
+        }
+        btn_new_session.onClick {
+            uiJobs += launch { runCatching { vm.newSession() } }
+            toast("已新建会话")
+        }
+        btn_sessions.onClick { showSessionDialog() }
+
+        chip_summarize.onClick { fillInput("帮我总结当前正在读的这一章") }
+        chip_find_book.onClick { fillInput("帮我在书源里找《诡秘之主》，并加入书架") }
+        chip_characters.onClick { fillInput("分析一下当前这本书的主要人物关系") }
+        chip_source.onClick { fillInput("检测我的书源哪些失效了，给出诊断") }
+        chip_shelf.onClick { fillInput("看看我书架里有哪些书？") }
     }
 
+    private fun fillInput(text: String) {
+        et_input.setText(text)
+        et_input.setSelection(text.length)
+        et_input.requestFocus()
+    }
+
+    // ---------- 状态订阅 ----------
+
     private fun initVm() {
-        vm.start(this)
+        vm.attach(this)
+
+        // 统一轮询刷新（协程 1.3.x 下避免对 StateFlow 使用实验性 collect）
         uiJobs += launch {
+            var lastBusy: Boolean? = null
             while (isActive) {
                 val list = vm.messages.value
                 adapter.setItems(list)
-                if (list.isNotEmpty()) {
+                val isEmpty = list.isEmpty()
+                box_empty.visibility = if (isEmpty) View.VISIBLE else View.GONE
+                recycler_view.visibility = if (isEmpty) View.GONE else View.VISIBLE
+                val busyNow = vm.busy.value
+                chips_scroll.visibility =
+                    if (!busyNow || isEmpty) View.VISIBLE else View.GONE
+                if (list.size != lastSize && list.isNotEmpty()) {
                     recycler_view.scrollToPosition(list.size - 1)
+                    lastSize = list.size
                 }
-                kotlinx.coroutines.delay(300)
-            }
-        }
-        uiJobs += launch {
-            while (isActive) {
-                tv_typing.visibility =
-                    if (vm.typing.value) {
-                        android.view.View.VISIBLE
-                    } else {
-                        android.view.View.GONE
-                    }
-                kotlinx.coroutines.delay(200)
-            }
-        }
-        uiJobs += launch {
-            while (isActive) {
-                val req = vm.confirm.value
-                if (req != null && confirmingToken != req.confirmToken) {
-                    confirmingToken = req.confirmToken
-                    showConfirm(req.confirmToken, req.proposal)
+                typing_bar.visibility = if (vm.typing.value) View.VISIBLE else View.GONE
+                if (busyNow != lastBusy) {
+                    btn_send.visibility = if (busyNow) View.GONE else View.VISIBLE
+                    btn_stop.visibility = if (busyNow) View.VISIBLE else View.GONE
+                    lastBusy = busyNow
                 }
-                kotlinx.coroutines.delay(200)
+                tv_subtitle.text = vm.statusLine.value
+                kotlinx.coroutines.delay(150)
             }
         }
         uiJobs += launch {
@@ -120,7 +167,7 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
                         AppNav.ToBookshelf -> openBookshelf()
                     }
                 }
-                kotlinx.coroutines.delay(200)
+                kotlinx.coroutines.delay(150)
             }
         }
     }
@@ -128,9 +175,7 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
     private fun openReader(nav: AppNav.OpenBook) {
         val url = nav.bookUrl
         if (url.isNullOrBlank()) {
-            android.widget.Toast.makeText(
-                this, "未定位到《${nav.bookName}》，可能未加入书架", android.widget.Toast.LENGTH_SHORT
-            ).show()
+            toast("未定位到《${nav.bookName}》，可能未加入书架")
             return
         }
         startActivity<ReadBookActivity>(Pair("bookUrl", url), Pair("inBookshelf", true))
@@ -148,38 +193,204 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
         startActivity<SearchActivity>(Pair("key", nav.keyword))
     }
 
-    private fun send() {
-        val text = et_input.text?.toString()?.trim().orEmpty()
-        if (text.isBlank()) return
-        et_input.setText("")
-        vm.send(text, this)
-    }
+    // ---------- 会话管理弹窗 ----------
 
-    private fun showConfirm(token: String, proposal: Map<String, Any>) {
-        val body = proposal.entries.joinToString("\n") { "${it.key}: ${it.value}" }
-        AlertDialog.Builder(this)
-            .setTitle("等待工具确认")
-            .setMessage(body)
-            .setPositiveButton("同意") { _, _ -> vm.approve(token, true) }
-            .setNegativeButton("拒绝") { _, _ -> vm.approve(token, false) }
-            .setOnDismissListener { confirmingToken = null }
-            .show()
-    }
-
-    inner class MessageAdapter(context: Context) :
-        SimpleRecyclerAdapter<ChatRow>(context, R.layout.item_agent_message) {
-
-        override fun convert(holder: ItemViewHolder, item: ChatRow, payloads: MutableList<Any>) {
-            holder.itemView.apply {
-                tv_message.text = if (item.role == "user") {
-                    "我：${item.content}"
-                } else {
-                    "助手：${item.content}"
+    private fun showSessionDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_ai_sessions, null)
+        val listView = dialogView.findViewById<ListView>(R.id.list_sessions)
+        val listAdapter = object : BaseAdapter() {
+            override fun getCount(): Int = vm.sessions.value.size
+            override fun getItem(position: Int) = vm.sessions.value[position]
+            override fun getItemId(position: Int) = getItem(position).id
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val v = convertView ?: layoutInflater
+                    .inflate(R.layout.ai_item_session, parent, false)
+                val s = getItem(position)
+                v.tv_session_title.text =
+                    if (s.id == vm.sessionId.value) "● ${s.title}" else s.title
+                v.tv_session_time.text = vm.formatTime(s.updatedAt)
+                v.btn_session_delete.onClick {
+                    AlertDialog.Builder(this@AgentHubActivity)
+                        .setMessage("确定删除会话「${s.title}」吗？")
+                        .setPositiveButton("删除") { _, _ ->
+                            uiJobs += launch { runCatching { vm.deleteSession(s.id) } }
+                            toast("会话已删除")
+                        }
+                        .setNegativeButton("取消", null)
+                        .show()
                 }
+                return v
             }
         }
+        listView.adapter = listAdapter
 
-        override fun registerListener(holder: ItemViewHolder) {
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("会话记录")
+            .setView(dialogView)
+            .setPositiveButton("＋ 新建") { _, _ ->
+                uiJobs += launch { runCatching { vm.newSession() } }
+            }
+            .setNeutralButton("清空当前消息") { _, _ ->
+                AlertDialog.Builder(this)
+                    .setMessage("确定清空当前会话的全部消息吗？")
+                    .setPositiveButton("清空") { _, _ ->
+                        uiJobs += launch { runCatching { vm.clearCurrentMessages() } }
+                    }
+                    .setNegativeButton("取消", null)
+                    .show()
+            }
+            .setNegativeButton("关闭", null)
+            .show()
+
+        listView.setOnItemClickListener { _, _, position, _ ->
+            val target = vm.sessions.value.getOrNull(position) ?: return@setOnItemClickListener
+            dialog.dismiss()
+            uiJobs += launch { runCatching { vm.switchTo(target.id) } }
         }
     }
+
+    private fun toast(msg: String) {
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+    }
+
+    // ---------- 消息多类型 Adapter ----------
+
+    inner class ChatAdapter(context: Context) : CommonRecyclerAdapter<ChatRow>(context) {
+
+        init {
+            addItemViewDelegate(
+                VT_USER,
+                object : ItemViewDelegate<ChatRow>(context, R.layout.ai_item_msg_user) {
+                    override fun convert(holder: ItemViewHolder, item: ChatRow, payloads: MutableList<Any>) {
+                        holder.itemView.tv_content.text = (item as ChatRow.Msg).content
+                    }
+
+                    override fun registerListener(holder: ItemViewHolder) {}
+                })
+            addItemViewDelegate(
+                VT_AI,
+                object : ItemViewDelegate<ChatRow>(context, R.layout.ai_item_msg_ai) {
+                    override fun convert(holder: ItemViewHolder, item: ChatRow, payloads: MutableList<Any>) {
+                        holder.itemView.tv_content.text = (item as ChatRow.Msg).content
+                    }
+
+                    override fun registerListener(holder: ItemViewHolder) {}
+                })
+            addItemViewDelegate(
+                VT_TOOL,
+                object : ItemViewDelegate<ChatRow>(context, R.layout.ai_item_tool) {
+                    override fun convert(holder: ItemViewHolder, item: ChatRow, payloads: MutableList<Any>) {
+                        val card = item as ChatRow.ToolCard
+                        val v = holder.itemView
+                        v.tv_tool_name.text = card.name
+                        v.tv_tool_args.text = card.argsPreview
+                        v.tv_tool_args.visibility =
+                            if (card.argsPreview.isBlank()) View.GONE else View.VISIBLE
+                        if (card.detail.isNullOrBlank()) {
+                            v.tv_tool_detail.visibility = View.GONE
+                        } else {
+                            v.tv_tool_detail.visibility = View.VISIBLE
+                            v.tv_tool_detail.text = card.detail
+                        }
+                        when (card.phase) {
+                            ToolEvent.PHASE_RUNNING -> {
+                                v.tv_tool_state_icon.text = "⏳"
+                                v.tv_tool_state.text = "执行中"
+                                v.tv_tool_state.setTextColor(Color.parseColor("#8A94A6"))
+                            }
+                            ToolEvent.PHASE_RESULT -> {
+                                v.tv_tool_state_icon.text = "✅"
+                                v.tv_tool_state.text = formatElapsed(card.elapsedMs)
+                                v.tv_tool_state.setTextColor(context.getColorCompat(R.color.ai_ok_text))
+                            }
+                            ToolEvent.PHASE_CONFIRM -> {
+                                v.tv_tool_state_icon.text = "🔐"
+                                v.tv_tool_state.text = "待确认"
+                                v.tv_tool_state.setTextColor(Color.parseColor("#E08E00"))
+                            }
+                            ToolEvent.PHASE_APPROVED -> {
+                                v.tv_tool_state_icon.text = "✍️"
+                                v.tv_tool_state.text = formatElapsed(card.elapsedMs)
+                                v.tv_tool_state.setTextColor(context.getColorCompat(R.color.ai_ok_text))
+                            }
+                            ToolEvent.PHASE_DENIED -> {
+                                v.tv_tool_state_icon.text = "🚫"
+                                v.tv_tool_state.text = "已拒绝"
+                                v.tv_tool_state.setTextColor(context.getColorCompat(R.color.ai_error_text))
+                            }
+                            else -> {
+                                v.tv_tool_state_icon.text = "❌"
+                                v.tv_tool_state.text = "出错"
+                                v.tv_tool_state.setTextColor(context.getColorCompat(R.color.ai_error_text))
+                            }
+                        }
+                    }
+
+                    override fun registerListener(holder: ItemViewHolder) {}
+                })
+            addItemViewDelegate(
+                VT_ERROR,
+                object : ItemViewDelegate<ChatRow>(context, R.layout.ai_item_error) {
+                    override fun convert(holder: ItemViewHolder, item: ChatRow, payloads: MutableList<Any>) {
+                        holder.itemView.tv_error.text = (item as ChatRow.ErrorRow).message
+                    }
+
+                    override fun registerListener(holder: ItemViewHolder) {}
+                })
+            addItemViewDelegate(
+                VT_CONFIRM,
+                object : ItemViewDelegate<ChatRow>(context, R.layout.ai_item_confirm) {
+                    override fun convert(holder: ItemViewHolder, item: ChatRow, payloads: MutableList<Any>) {
+                        val c = item as ChatRow.Confirm
+                        val v = holder.itemView
+                        v.tv_proposal.text = c.proposalText
+                        if (c.decided == null) {
+                            v.confirm_actions.visibility = View.VISIBLE
+                            v.tv_decided.visibility = View.GONE
+                        } else {
+                            v.confirm_actions.visibility = View.GONE
+                            v.tv_decided.visibility = View.VISIBLE
+                            if (c.decided == true) {
+                                v.tv_decided.text = "✔ 已同意执行"
+                                v.tv_decided.setTextColor(context.getColorCompat(R.color.ai_ok_text))
+                            } else {
+                                v.tv_decided.text = "✖ 已拒绝"
+                                v.tv_decided.setTextColor(context.getColorCompat(R.color.ai_error_text))
+                            }
+                        }
+                    }
+
+                    override fun registerListener(holder: ItemViewHolder) {
+                        holder.itemView.btn_approve.onClick {
+                            getItem(holder.layoutPosition)?.let { row ->
+                                if (row is ChatRow.Confirm && row.decided == null) {
+                                    vm.approve(row.token, true)
+                                    toast("已同意，正在执行写操作")
+                                }
+                            }
+                        }
+                        holder.itemView.btn_deny.onClick {
+                            getItem(holder.layoutPosition)?.let { row ->
+                                if (row is ChatRow.Confirm && row.decided == null) {
+                                    vm.approve(row.token, false)
+                                }
+                            }
+                        }
+                    }
+                })
+        }
+
+        override fun getItemViewType(item: ChatRow, position: Int): Int = when (item) {
+            is ChatRow.Msg -> if (item.role == "user") VT_USER else VT_AI
+            is ChatRow.ToolCard -> VT_TOOL
+            is ChatRow.ErrorRow -> VT_ERROR
+            is ChatRow.Confirm -> VT_CONFIRM
+        }
+
+        private fun formatElapsed(ms: Long): String =
+            if (ms <= 0) "完成" else "完成 · ${ms / 1000.0}s"
+    }
+
+    private fun Context.getColorCompat(res: Int): Int =
+        androidx.core.content.ContextCompat.getColor(this, res)
 }
