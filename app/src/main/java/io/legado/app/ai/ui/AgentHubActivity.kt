@@ -263,7 +263,7 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
                 VT_USER,
                 object : ItemViewDelegate<ChatRow>(context, R.layout.ai_item_msg_user) {
                     override fun convert(holder: ItemViewHolder, item: ChatRow, payloads: MutableList<Any>) {
-                        holder.itemView.tv_content.text = (item as ChatRow.Msg).content
+                        holder.itemView.tv_user_text.text = (item as ChatRow.Msg).content
                     }
 
                     override fun registerListener(holder: ItemViewHolder) {}
@@ -272,7 +272,7 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
                 VT_AI,
                 object : ItemViewDelegate<ChatRow>(context, R.layout.ai_item_msg_ai) {
                     override fun convert(holder: ItemViewHolder, item: ChatRow, payloads: MutableList<Any>) {
-                        holder.itemView.tv_content.text = (item as ChatRow.Msg).content
+                        holder.itemView.tv_ai_text.text = (item as ChatRow.Msg).content
                     }
 
                     override fun registerListener(holder: ItemViewHolder) {}
