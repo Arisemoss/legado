@@ -7,7 +7,7 @@
     android:paddingBottom="4dp">
 
     <TextView
-        android:id="@+id/tv_content"
+        android:id="@+id/tv_user_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="end"
