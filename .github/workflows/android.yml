@@ -13,16 +13,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install Android SDK components
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-29" "build-tools;29.0.3" > /dev/null
+
       - name: Set up JDK 8
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '8'
-
-      - name: Install Android SDK components
-        run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-29" "build-tools;29.0.3" > /dev/null
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
