@@ -27,12 +27,21 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build AI flavor (unsigned release)
-        run: ./gradlew :app:assembleAiRelease --stacktrace -x lint
+      - name: Build AI flavor (unsigned release + debug)
+        run: |
+          ./gradlew :app:assembleAiRelease --stacktrace -x lint
+          ./gradlew :app:assembleAiDebug --stacktrace -x lint
 
-      - name: Upload APK artifact
+      - name: Upload release APK (unsigned)
         uses: actions/upload-artifact@v4
         with:
-          name: legado-ai-apk
+          name: legado-ai-apk-release-unsigned
           path: app/build/outputs/apk/ai/release/*.apk
+          if-no-files-found: error
+
+      - name: Upload debug APK (可直接安装)
+        uses: actions/upload-artifact@v4
+        with:
+          name: legado-ai-apk-debug
+          path: app/build/outputs/apk/ai/debug/*.apk
           if-no-files-found: error
