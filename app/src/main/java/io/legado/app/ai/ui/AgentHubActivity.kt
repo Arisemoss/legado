@@ -13,6 +13,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.LinearLayoutManager
 import io.legado.app.R
 import io.legado.app.ai.bridge.AppNav
+import io.legado.app.base.BaseActivity
 import io.legado.app.ai.model.ToolEvent
 import io.legado.app.ai.tool.AiPreset
 import io.legado.app.base.adapter.CommonRecyclerAdapter
