@@ -13,6 +13,9 @@ interface AiSessionDao {
     @Query("SELECT * FROM aiSessions WHERE archived=0 ORDER BY updatedAt DESC")
     fun observeAll(): Flow<List<AiSession>>
 
+    @Query("SELECT * FROM aiSessions WHERE archived=0 ORDER BY updatedAt DESC")
+    suspend fun getAll(): List<AiSession>
+
     @Query("SELECT * FROM aiSessions WHERE id=:id")
     suspend fun get(id: Long): AiSession?
 

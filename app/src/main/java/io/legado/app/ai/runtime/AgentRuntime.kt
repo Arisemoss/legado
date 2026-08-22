@@ -144,7 +144,7 @@ class AgentRuntime(
                 when (val res = resolutions[i]) {
                     is ToolResolution.Error -> {
                         postEvent(
-                            ctx, calls[i].id, calls[i].function.name,
+                            ctx, call.id, call.name,
                             ToolEvent.PHASE_ERROR, detail = res.message.take(240)
                         )
                         messages += executor.errorMessage(call, res.message)

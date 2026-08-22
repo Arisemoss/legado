@@ -15,10 +15,10 @@ import io.legado.app.ai.tool.ConfirmRequest
 import io.legado.app.ai.tool.ToolContext
 import io.legado.app.constant.PreferKey
 import io.legado.app.data.entities.AiSession
+import io.legado.app.utils.getPrefString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -106,20 +106,26 @@ class AgentHubViewModel(
         ctx = ToolContext(sessionId = -1L, preset = preset)
 
         vmJobs += scope.launch {
-            App.db.aiSessionDao().observeAll().collect { list ->
-                sessions.value = list
-                // 同步当前会话标题（列表晚于 loadInto 到达时）
-                currentTitle = list.find { it.id == sessionId.value }?.title ?: currentTitle
-                if (sessionId.value !in list.map { it.id } && sessionId.value != -1L) {
-                    // 当前会话被删除：自动落到最新会话或新建
-                    switchTo(list.firstOrNull()?.id ?: -2L)
+            while (isActive) {
+                val list = runCatching { App.db.aiSessionDao().getAll() }.getOrNull()
+                if (list != null) {
+                    sessions.value = list
+                    // 同步当前会话标题（列表晚于 loadInto 到达时）
+                    currentTitle = list.find { it.id == sessionId.value }?.title ?: currentTitle
+                    if (sessionId.value !in list.map { it.id } && sessionId.value != -1L) {
+                        // 当前会话被删除：自动落到最新会话或新建
+                        switchTo(list.firstOrNull()?.id ?: -2L)
+                    }
                 }
+                kotlinx.coroutines.delay(1000)
             }
         }
         vmJobs += scope.launch {
             while (isActive) {
-                val ev = ctx.onToolEvent.value ?: run {
-                    kotlinx.coroutines.delay(80); continue
+                val ev = ctx.onToolEvent.value
+                if (ev == null) {
+                    kotlinx.coroutines.delay(80)
+                    continue
                 }
                 mergeToolCard(ev)
                 ctx.onToolEvent.value = null
@@ -150,7 +156,7 @@ class AgentHubViewModel(
     suspend fun init() {
         refreshStatusLine()
         val latest = runCatching {
-            App.db.aiSessionDao().observeAll().first()
+            App.db.aiSessionDao().getAll()
         }.getOrNull() ?: emptyList()
 
         val target = latest.firstOrNull()?.id ?: conversation.create()
