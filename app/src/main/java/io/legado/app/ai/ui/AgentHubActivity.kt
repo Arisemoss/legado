@@ -115,6 +115,7 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
             toast("已新建会话")
         }
         btn_sessions.onClick { showSessionDialog() }
+        btn_logs.onClick { startActivity<AiLogActivity>() }
 
         chip_summarize.onClick { fillInput("帮我总结当前正在读的这一章") }
         chip_find_book.onClick { fillInput("帮我在书源里找《诡秘之主》，并加入书架") }

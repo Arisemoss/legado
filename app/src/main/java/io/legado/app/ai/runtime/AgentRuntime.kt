@@ -8,6 +8,7 @@ import io.legado.app.ai.model.ToolResultState
 import io.legado.app.ai.model.AgentError
 import io.legado.app.ai.model.AgentErrorCode
 import io.legado.app.ai.model.ToolEvent
+import io.legado.app.ai.log.AiLog
 import io.legado.app.ai.tool.ConfirmRequest
 import io.legado.app.ai.tool.ToolContext
 import io.legado.app.ai.tool.ToolRegistry
@@ -91,6 +92,10 @@ class AgentRuntime(
         messages += ChatMessage(role = "system", content = systemPrompt)
         messages += history.takeLast(HISTORY_CAP)
         messages += ChatMessage(role = "user", content = userPrompt)
+        AiLog.i(
+            "Agent",
+            "▶ 开始 \"${userPrompt.take(80)}\" · history=${history.size}(取${minOf(history.size, HISTORY_CAP)}) · ${if (preferStream) "流式" else "非流式"}"
+        )
 
         var billed = 0L
         var rounds = 0
@@ -99,11 +104,16 @@ class AgentRuntime(
                 return AgentResult(lastAnswer(messages), AgentResultState.STOPPED, billed, rounds)
             }
             rounds++
+            AiLog.i("Agent", "第 $rounds/$maxRounds 轮 · 请求模型…")
 
             val completion = try {
                 completeOnce(messages, ctx)
-                    ?: return AgentResult(lastAnswer(messages), AgentResultState.STOPPED, billed, rounds)
+                    ?: run {
+                        AiLog.w("Agent", "用户停止（第 $rounds 轮前）")
+                        return AgentResult(lastAnswer(messages), AgentResultState.STOPPED, billed, rounds)
+                    }
             } catch (e: AgentException) {
+                AiLog.e("Agent", "模型调用失败: ${e.code} ${e.message}")
                 return AgentResult("模型调用失败：${e.message}", AgentResultState.ERROR, billed, rounds)
             }
 
@@ -111,7 +121,12 @@ class AgentRuntime(
             val increment = completion.usage?.totalTokens?.toLong()
                 ?: (256L + (completion.content?.length ?: 0) / 3L)
             billed += increment
+            AiLog.i(
+                "Agent",
+                "第 $rounds 轮返回: content=${completion.content?.length ?: 0}字, toolCalls=${completion.toolCalls?.size ?: 0}, +$increment tokens(累计$billed)"
+            )
             if (billed > maxTokens) {
+                AiLog.w("Agent", "预算超限截断: $billed > $maxTokens")
                 return AgentResult(completion.content ?: "已达预算上限", AgentResultState.BUDGET_EXCEEDED, billed, rounds)
             }
 
@@ -154,6 +169,7 @@ class AgentRuntime(
                             ctx, call.id, call.name,
                             ToolEvent.PHASE_ERROR, detail = res.message.take(240)
                         )
+                        AiLog.w("Agent", "工具解析失败 ${call.name}: ${res.message}")
                         messages += executor.errorMessage(call, res.message)
                     }
                     is ToolResolution.Ready -> {
@@ -168,7 +184,9 @@ class AgentRuntime(
                                     detail = "写操作待确认…"
                                 )
                                 ctx.onConfirmRequested.value = ConfirmRequest(call.id, res.args)
+                                AiLog.w("Confirm", "写操作待确认: ${res.def.id} args=${previewArgs(res.args)}")
                                 val approved = awaitApproval(ctx, call.id)
+                                AiLog.i("Confirm", "${res.def.id} → ${if (approved) "用户同意" else "用户拒绝"}")
                                 postEvent(
                                     ctx, calls[i].id, res.def.id,
                                     if (approved) ToolEvent.PHASE_APPROVED else ToolEvent.PHASE_DENIED,
@@ -179,6 +197,7 @@ class AgentRuntime(
                                     try {
                                         res.def.onApproved(ctx, res.args)
                                     } catch (e: Exception) {
+                                        AiLog.e("Confirm", "${res.def.id} 写入失败", e)
                                         postEvent(
                                             ctx, calls[i].id, res.def.id,
                                             ToolEvent.PHASE_ERROR,
@@ -211,6 +230,7 @@ class AgentRuntime(
                 }
             }
         }
+        AiLog.i("Agent", "■ 结束: ${lastAnswer(messages).length}字, $rounds 轮, $billed tokens")
         return AgentResult(lastAnswer(messages), AgentResultState.DONE, billed, rounds)
     }
 

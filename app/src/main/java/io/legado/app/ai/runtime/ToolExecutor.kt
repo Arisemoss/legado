@@ -1,6 +1,7 @@
 package io.legado.app.ai.runtime
 
 import com.google.gson.JsonParser
+import io.legado.app.ai.log.AiLog
 import io.legado.app.ai.model.AgentError
 import io.legado.app.ai.model.AgentErrorCode
 import io.legado.app.ai.model.ChatMessage
@@ -55,13 +56,26 @@ class ToolExecutor(
                 state = ToolResultState.OK
             )
         }
+        val startMs = System.currentTimeMillis()
+        AiLog.i("Tool", "▶ ${def.id} args=${args.toString().take(200)}")
         return withTimeoutOrNull(toolTimeoutMs) {
-            runWithRetry(def, ctx, args)
-        } ?: ToolResult(
-            text = jsonError(def.id, "工具执行超时（>${toolTimeoutMs / 1000}s）"),
-            state = ToolResultState.OK,
-            error = AgentError(AgentErrorCode.RETRYABLE_TIMEOUT, "tool timeout")
-        )
+            runWithRetry(def, ctx, args).also { r ->
+                val ms = System.currentTimeMillis() - startMs
+                if (r.error != null) {
+                    AiLog.w("Tool", "✕ ${def.id} ${ms}ms ${r.text.take(200)}")
+                } else {
+                    AiLog.i("Tool", "✓ ${def.id} ${ms}ms ${r.text.take(160)}")
+                }
+            }
+        } ?: run {
+            val ms = System.currentTimeMillis() - startMs
+            AiLog.e("Tool", "⏱ ${def.id} 超时(>${toolTimeoutMs / 1000}s, 实际${ms}ms)")
+            ToolResult(
+                text = jsonError(def.id, "工具执行超时（>${toolTimeoutMs / 1000}s）"),
+                state = ToolResultState.OK,
+                error = AgentError(AgentErrorCode.RETRYABLE_TIMEOUT, "tool timeout")
+            )
+        }
     }
 
     private suspend fun runWithRetry(
@@ -80,6 +94,7 @@ class ToolExecutor(
                     error = AgentError(e.code, e.message ?: "tool error")
                 )
             } catch (e: Exception) {
+                AiLog.e("Tool", "${def.id} 异常", e)
                 ToolResult(
                     text = jsonError(def.id, e.localizedMessage ?: "tool error"),
                     state = ToolResultState.OK,
@@ -90,6 +105,7 @@ class ToolExecutor(
             if (r.state == ToolResultState.PENDING_CONFIRM || def.manualConfirm) return r
             if (r.error == null || !r.error.code.retryable || attempt >= maxToolRetries) return r
             attempt++
+            AiLog.w("Tool", "↻ ${def.id} 可重试错误，${300L * attempt}ms 后第${attempt + 1}次尝试")
             delay(300L * attempt) // 退避 0.3s, 0.6s...
         }
     }

@@ -1,6 +1,7 @@
 package io.legado.app.ai.bridge
 
 import com.google.gson.Gson
+import io.legado.app.ai.log.AiLog
 import io.legado.app.App
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookChapter
@@ -34,25 +35,39 @@ class DefaultBookFetcher : BookFetcher {
             val sources = App.db.bookSourceDao().allEnabled
                 .filter { !it.searchUrl.isNullOrBlank() }
                 .take(MAX_SOURCES)
+            AiLog.i(
+                "Fetch",
+                "搜索 \"$keyword\" · ${sources.size}源并行(${sources.joinToString("、") { it.bookSourceName.orEmpty().ifBlank { it.bookSourceUrl } }})"
+            )
             // 并行发起全部书源搜索，单源限时，失败静默跳过
+            val startMs = System.currentTimeMillis()
             val found = coroutineScope {
                 sources.map { source ->
                     async {
+                        val s = System.currentTimeMillis()
                         try {
-                            withTimeoutOrNull(PER_SOURCE_TIMEOUT_MS) {
+                            val r = withTimeoutOrNull(PER_SOURCE_TIMEOUT_MS) {
                                 WebBook(source).searchBookSuspend(
                                     scope = CoroutineScope(Dispatchers.IO),
                                     key = keyword,
                                     page = 1
                                 )
-                            } ?: emptyList()
+                            } ?: emptyList<SearchBook>().also {
+                                AiLog.w("Fetch", "源《${source.bookSourceName}》超时(>${PER_SOURCE_TIMEOUT_MS / 1000}s)")
+                            }
+                            AiLog.d(
+                                "Fetch",
+                                "源《${source.bookSourceName}》${r.size}条 ${System.currentTimeMillis() - s}ms"
+                            )
+                            r
                         } catch (_: Exception) {
+                            AiLog.w("Fetch", "源《${source.bookSourceName}》失败")
                             emptyList<SearchBook>()
                         }
                     }
                 }.awaitAll()
             }
-            found.flatten()
+            val result = found.flatten()
                 .filter { seen.add(it.name) }   // 按书源优先级去重
                 .take(limit)
                 .map { book ->
@@ -62,6 +77,11 @@ class DefaultBookFetcher : BookFetcher {
                         "from" to (book.originName.ifBlank { book.origin })
                     )
                 }
+            AiLog.i(
+                "Fetch",
+                "搜索完成: ${result.size}条/${System.currentTimeMillis() - startMs}ms"
+            )
+            result
         }
 
     override suspend fun recommendByName(name: String): List<Map<String, Any>> = search(name, 5)
@@ -89,6 +109,9 @@ class DefaultChapterReader : ChapterReader {
                     content = if (source != null) {
                         try {
                             // 联网抓取限时 15s，防止慢源拖死整个工具调用
+                            AiLog.i(
+                                "Chapter", "缓存未命中，联网抓取《${book.name}》·${chapter.title}"
+                            )
                             withTimeoutOrNull(15_000L) {
                                 WebBook(source).getContentSuspend(
                                     book = book,
@@ -102,6 +125,9 @@ class DefaultChapterReader : ChapterReader {
                     } else {
                         null
                     }
+                }
+                if (content.isNullOrBlank()) {
+                    AiLog.w("Chapter", "正文获取失败:《${book.name}》·${chapter.title}")
                 }
                 content?.takeIf { it.isNotBlank() }
             } catch (_: Exception) {

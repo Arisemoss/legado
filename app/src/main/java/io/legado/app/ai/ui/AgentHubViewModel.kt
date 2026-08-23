@@ -2,6 +2,7 @@ package io.legado.app.ai.ui
 
 import io.legado.app.App
 import io.legado.app.ai.AiPlatform
+import io.legado.app.ai.log.AiLog
 import io.legado.app.ai.model.AiProviderPresets
 import io.legado.app.ai.model.ChatMessage
 import io.legado.app.ai.model.ToolEvent
@@ -242,6 +243,7 @@ class AgentHubViewModel(
         if (sid <= 0) return
         ctx.stopRequested.value = false
         if (this::ctx.isInitialized) ctx.onPartialText.value = null // 清残留打字机气泡
+        AiLog.i("Hub", "用户发送: \"${text.take(100)}\" (session=$sid)")
         appendRow(ChatRow.Msg(nextKey(), "user", text))
         typing.value = true
         busy.value = true
@@ -256,12 +258,18 @@ class AgentHubViewModel(
             val result: AgentResult = runCatching {
                 runtime.execute(text, history, ctx, systemPrompt)
             }.getOrElse {
+                AiLog.e("Hub", "execute 异常", it)
                 AgentResult(it.localizedMessage ?: "执行出错", AgentResultState.ERROR)
             }
 
             typing.value = false
             busy.value = false
             ctx.onPartialText.value = null
+            if (result.state != AgentResultState.DONE) {
+                AiLog.w("Hub", "回答结束 state=${result.state} rounds=${result.rounds} tokens=${result.tokensUsed}")
+            } else {
+                AiLog.i("Hub", "回答完成: ${result.answer.length}字, ${result.rounds}轮, ${result.tokensUsed} tokens")
+            }
             appendAssistantResult(sid, text, result)
             refreshSessions()
             // 清空桥接层遗留的确认源

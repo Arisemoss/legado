@@ -6,6 +6,7 @@ import com.google.gson.JsonParser
 import io.legado.app.ai.model.AgentErrorCode
 import io.legado.app.ai.model.ChatMessage
 import io.legado.app.ai.model.Usage
+import io.legado.app.ai.log.AiLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType
@@ -76,12 +77,17 @@ class OpenAIClient(
         var usage: Usage? = null
         var sawSseData = false
         val rawFallback = StringBuilder()
+        val startMs = System.currentTimeMillis()
+        var chunks = 0
+        var firstDeltaMs = 0L
+        AiLog.i("SSE", "连接 ${normalizeBase(baseUrl)} model=$model")
 
         try {
             client.newCall(req).execute().use { resp ->
                 val respBody = resp.body()
                     ?: throw AgentException(AgentErrorCode.NETWORK_UNAVAILABLE, "empty body")
                 if (!resp.isSuccessful) {
+                    AiLog.e("SSE", "HTTP ${resp.code()}")
                     throw AgentException(
                         AgentErrorCode.AUTH_FAILED,
                         "HTTP ${resp.code()}: ${respBody.string().take(200)}"
@@ -97,22 +103,36 @@ class OpenAIClient(
                     val payload = line.removePrefix("data:").trim()
                     if (payload == "[DONE]") break
                     sawSseData = true
+                    val deltaCount = chunks
                     consumeChunk(
-                        payload, content, onDelta,
-                        callIds, callNames, callArgs
+                        payload, content, onDelta = { piece ->
+                            chunks++
+                            if (firstDeltaMs == 0L) {
+                                firstDeltaMs = System.currentTimeMillis() - startMs
+                                AiLog.i("SSE", "首块到达 ${firstDeltaMs}ms")
+                            }
+                            onDelta(piece)
+                        },
+                        callIds = callIds, callNames = callNames, callArgs = callArgs
                     ) { u -> usage = u }
+                    if (chunks == deltaCount) chunks++ // tool_call/usage 块也计入块数
                 }
             }
         } catch (e: AgentException) {
             throw e
         } catch (e: Exception) {
             // 已有部分内容时视为提前结束（网络中断），否则按错误抛出
-            if (sawSseData && (content.isNotEmpty() || callIds.isNotEmpty())) Unit
-            else throw AgentException(AgentErrorCode.NETWORK_UNAVAILABLE, e.localizedMessage ?: "stream error")
+            if (sawSseData && (content.isNotEmpty() || callIds.isNotEmpty())) {
+                AiLog.w("SSE", "流中断，保留 ${content.length} 字部分内容")
+            } else {
+                AiLog.e("SSE", "失败: ${e.localizedMessage}", e)
+                throw AgentException(AgentErrorCode.NETWORK_UNAVAILABLE, e.localizedMessage ?: "stream error")
+            }
         }
 
         // 服务端不支持流式（返回了普通 JSON）：回退非流式解析
         if (!sawSseData && content.isEmpty() && callIds.isEmpty()) {
+            AiLog.w("SSE", "响应非 SSE，回退 JSON 解析")
             return@withContext parseCompletion(rawFallback.toString())
         }
 
@@ -120,6 +140,11 @@ class OpenAIClient(
             val name = callNames[idx] ?: return@mapNotNull null
             ToolCallData(id = callIds[idx] ?: "", name = name, arguments = callArgs[idx]?.toString() ?: "{}")
         }
+        AiLog.i(
+            "SSE",
+            "完成: ${content.length}字/$chunks块/${System.currentTimeMillis() - startMs}ms" +
+                (if (calls.isNotEmpty()) " toolCalls=${calls.size}" else "")
+        )
         ChatCompletion(
             content = content.toString().ifEmpty { null },
             toolCalls = calls.ifEmpty { null },
