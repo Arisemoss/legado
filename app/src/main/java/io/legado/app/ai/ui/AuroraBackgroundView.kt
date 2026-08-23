@@ -106,7 +106,7 @@ class AuroraBackgroundView @JvmOverloads constructor(
             paint.shader = it
             canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
         }
-        val t = System.nanoTime() / 1_000_000_000.0
+        val t = System.nanoTime() / 1_000_000_000f
         val w = width.toFloat()
         val h = height.toFloat()
         val maxDim = maxOf(width, height).toFloat()
