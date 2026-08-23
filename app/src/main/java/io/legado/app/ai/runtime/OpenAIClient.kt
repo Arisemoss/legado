@@ -142,7 +142,7 @@ class OpenAIClient(
         }
         AiLog.i(
             "SSE",
-            "完成: ${content.length}字/$chunks块/${System.currentTimeMillis() - startMs}ms" +
+            "完成: ${content.length}字/${chunks}块/${System.currentTimeMillis() - startMs}ms" +
                 (if (calls.isNotEmpty()) " toolCalls=${calls.size}" else "")
         )
         ChatCompletion(
