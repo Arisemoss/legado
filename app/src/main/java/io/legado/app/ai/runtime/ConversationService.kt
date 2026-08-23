@@ -87,9 +87,14 @@ class ConversationService(
         "tool_call" -> ChatMessage(
             role = m.role,
             content = null,
-            toolCalls = parseToolCalls(m.payload)
+            toolCalls = parseToolCalls(m.payload),
+            createdAt = m.createdAt
         )
-        else -> ChatMessage(role = m.role, content = m.content)
+        else -> ChatMessage(
+            role = m.role,
+            content = m.content,
+            createdAt = m.createdAt
+        )
     }
 
     private fun parseToolCalls(payload: String?): List<ToolCall>? {
