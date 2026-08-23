@@ -74,7 +74,18 @@ class AgentHubViewModel(
 
     private val conversation by lazy { ConversationService(window = windowSize()) }
     private val runtime get() = AiPlatform.runtime
-    private val systemPrompt by lazy { SystemPromptBuilder(SkillRegistry()).build() }
+
+    /**
+     * 系统提示：native 模式只走原生函数调用；auto/text 模式额外注入
+     * Operit 式文本工具协议说明，让不支持 tools 参数的模型也能调用工具。
+     */
+    private val systemPrompt by lazy {
+        val protocol = App.INSTANCE.getPrefString(PreferKey.aiToolProtocol, "auto") ?: "auto"
+        SystemPromptBuilder(
+            SkillRegistry(),
+            if (protocol == "native") null else AiPlatform.registry
+        ).build()
+    }
 
     private var scope: CoroutineScope? = null
     private val vmJobs = ArrayList<Job>()

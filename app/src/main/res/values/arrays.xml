@@ -159,4 +159,15 @@
 		<item>100</item>
 	</string-array>
 
+	<string-array name="ai_tool_protocol_entries">
+		<item>自动（原生+文本协议，推荐）</item>
+		<item>仅原生函数调用</item>
+		<item>仅文本协议（兼容本地/受限接口）</item>
+	</string-array>
+	<string-array name="ai_tool_protocol_values">
+		<item>auto</item>
+		<item>native</item>
+		<item>text</item>
+	</string-array>
+
 </resources>

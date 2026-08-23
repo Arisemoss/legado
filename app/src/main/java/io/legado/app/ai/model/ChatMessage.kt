@@ -82,5 +82,18 @@ data class AiModelConfig(
     val stream: Boolean = false,
     val timeoutMillis: Long = 120_000L,
     val maxRounds: Int = 5,
-    val sessionWindow: Int = 50
-)
+    val sessionWindow: Int = 50,
+    /**
+     * 工具调用协议（Operit 式兼容层）：
+     * auto  = 原生 function-calling + 文本 XML 协议双通道（默认，最大兼容）
+     * native = 仅原生 function-calling
+     * text   = 仅文本 XML 协议（不支持 tools 参数的服务商/本地模型）
+     */
+    val toolProtocol: String = PROTOCOL_AUTO
+) {
+    companion object {
+        const val PROTOCOL_AUTO = "auto"
+        const val PROTOCOL_NATIVE = "native"
+        const val PROTOCOL_TEXT = "text"
+    }
+}

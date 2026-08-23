@@ -76,4 +76,7 @@ object PreferKey {
     const val aiChatBgPath = "ai_chat_bg_path"
     const val aiChatBgOpacity = "ai_chat_bg_opacity"
     const val aiChatBgGradient = "ai_chat_bg_gradient"
+
+    // AI 工具调用协议（Operit 兼容层）：auto | native | text
+    const val aiToolProtocol = "ai_tool_protocol"
 }
