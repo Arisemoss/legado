@@ -39,11 +39,18 @@ class AgentRuntime(
     private val maxRounds: Int = 5,
     private val maxTokens: Long = 32_000L,
     private val maxRetries: Int = 1,
-    private val confirmTimeoutMs: Long = 300_000L
+    private val confirmTimeoutMs: Long = 300_000L,
+    /** 开启后模型补全走 SSE 流式，增量文本经 ctx.onPartialText 回流 UI（打字机效果） */
+    private val preferStream: Boolean = false
 ) {
     private val executor = ToolExecutor(registry)
     private val approvals = Channel<Pair<String, Boolean>>(Channel.UNLIMITED)
     private var eventSeq = 0L
+
+    companion object {
+        /** 发送给模型的历史消息上限，防止长会话每轮请求无限膨胀拖慢响应 */
+        private const val HISTORY_CAP = 24
+    }
 
     /** 发布工具事件给 UI（实时工具卡片） */
     private fun postEvent(
@@ -82,7 +89,7 @@ class AgentRuntime(
     ): AgentResult {
         val messages = ArrayList<ChatMessage>()
         messages += ChatMessage(role = "system", content = systemPrompt)
-        messages += history
+        messages += history.takeLast(HISTORY_CAP)
         messages += ChatMessage(role = "user", content = userPrompt)
 
         var billed = 0L
@@ -210,12 +217,27 @@ class AgentRuntime(
     /**
      * 单次模型补全；对可重试错误做指数退避重试（默认 1 次重试），
      * 停止标志在重试间隙同样生效。重试耗尽抛出 [AgentException]。
+     * 流式模式下增量文本实时写入 ctx.onPartialText，轮次结束后清空。
      */
     private suspend fun completeOnce(messages: List<ChatMessage>, ctx: ToolContext): ChatCompletion? {
         var attempt = 0
         while (true) {
             if (ctx.stopRequested.value) return null
             try {
+                if (preferStream && client.supportsStream) {
+                    val acc = StringBuilder()
+                    val completion = client.completeStreaming(
+                        messages, registry.toOpenAiSchema(),
+                        onDelta = { delta ->
+                            acc.append(delta)
+                            ctx.onPartialText.value = acc.toString()
+                        },
+                        isCancelled = { ctx.stopRequested.value }
+                    )
+                    // 本轮流结束：清除打字机气泡，最终回答由主循环统一落行
+                    ctx.onPartialText.value = null
+                    return completion
+                }
                 return client.complete(messages, registry.toOpenAiSchema(), stream = false)
             } catch (e: AgentException) {
                 if (!e.code.retryable || attempt >= maxRetries) throw e

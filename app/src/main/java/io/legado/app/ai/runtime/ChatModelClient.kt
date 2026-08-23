@@ -16,6 +16,18 @@ interface ChatModelClient {
         tools: List<Map<String, Any>>?,
         stream: Boolean
     ): ChatCompletion
+
+    /**
+     * 流式 chat completion（SSE）。增量文本经 [onDelta] 回调（打字机效果），
+     * 返回值与 [complete] 一致（累积完整内容 + 组装好的 toolCalls），供 Agent 循环复用。
+     * [isCancelled] 在每个数据块间轮询，返回 true 时提前断开并返回已收到的部分内容。
+     */
+    suspend fun completeStreaming(
+        messages: List<ChatMessage>,
+        tools: List<Map<String, Any>>?,
+        onDelta: (String) -> Unit,
+        isCancelled: () -> Boolean = { false }
+    ): ChatCompletion = complete(messages, tools, false)
 }
 
 data class ChatCompletion(

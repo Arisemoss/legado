@@ -67,7 +67,8 @@ object AiPlatform {
                 registry = buildRegistry(bridge),
                 maxRounds = cfg.maxRounds,
                 maxTokens = 16_000L,
-                confirmTimeoutMs = cfg.timeoutMillis
+                confirmTimeoutMs = cfg.timeoutMillis,
+                preferStream = cfg.stream
             )
             lastConfig = cfg
             initialized = true

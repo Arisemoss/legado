@@ -11,6 +11,7 @@ import android.widget.ListView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import io.legado.app.R
 import io.legado.app.ai.bridge.AppNav
 import io.legado.app.base.BaseActivity
@@ -47,6 +48,9 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
         /** 指定打开 MainActivity 后切换到的 tab(index)，配合 AppNav.ToBookshelf 使用 */
         const val EXTRA_SELECT_TAB = "agent_select_tab"
 
+        /** 流式打字机临时气泡的行 key（最终回答落地后该行被移除） */
+        private const val ROW_STREAMING = "__streaming__"
+
         private const val VT_USER = 0
         private const val VT_AI = 1
         private const val VT_TOOL = 2
@@ -57,7 +61,6 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
     private lateinit var adapter: ChatAdapter
     private lateinit var vm: AgentHubViewModel
     private val uiJobs = ArrayList<Job>()
-    private var lastSize = -1
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         vm = AgentHubViewModel(readPreset())
@@ -131,30 +134,38 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
     private fun initVm() {
         vm.attach(this)
 
-        // 统一轮询刷新（协程 1.3.x 下避免对 StateFlow 使用实验性 collect）
+        // 状态刷新循环：仅在数据真正变化时重绘（修复原先每 150ms 全列表
+        // notifyDataSetChanged 导致的闪烁/跳动/耗电）；流式增量文本合成为
+        // 末尾的临时打字机气泡，仅就地更新该行。
         uiJobs += launch {
+            var lastRendered: List<ChatRow>? = null
             var lastBusy: Boolean? = null
             while (isActive) {
-                val list = vm.messages.value
-                adapter.setItems(list)
+                val base = vm.messages.value
+                val partial = vm.currentPartial()
+                val list = if (partial != null) {
+                    base + ChatRow.Msg(ROW_STREAMING, "assistant", partial)
+                } else base
+
                 val isEmpty = list.isEmpty()
                 box_empty.visibility = if (isEmpty) View.VISIBLE else View.GONE
                 recycler_view.visibility = if (isEmpty) View.GONE else View.VISIBLE
                 val busyNow = vm.busy.value
                 chips_scroll.visibility =
                     if (!busyNow || isEmpty) View.VISIBLE else View.GONE
-                if (list.size != lastSize && list.isNotEmpty()) {
-                    recycler_view.scrollToPosition(list.size - 1)
-                    lastSize = list.size
-                }
-                typing_bar.visibility = if (vm.typing.value) View.VISIBLE else View.GONE
+                // 首个 token 到达前显示"思考中"，出字后由打字机气泡接管
+                typing_bar.visibility =
+                    if (vm.typing.value && partial == null) View.VISIBLE else View.GONE
                 if (busyNow != lastBusy) {
                     btn_send.visibility = if (busyNow) View.GONE else View.VISIBLE
                     btn_stop.visibility = if (busyNow) View.VISIBLE else View.GONE
                     lastBusy = busyNow
                 }
                 tv_subtitle.text = vm.statusLine.value
-                kotlinx.coroutines.delay(150)
+
+                renderIfChanged(list, lastRendered)
+                lastRendered = list
+                kotlinx.coroutines.delay(if (partial != null) 90L else 150L)
             }
         }
         uiJobs += launch {
@@ -171,6 +182,43 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
                 kotlinx.coroutines.delay(150)
             }
         }
+    }
+
+    /**
+     * 差异化渲染：
+     * - 引用相等 → 跳过（StateFlow 未变时不触发任何 notify）；
+     * - 仅末行内容变化（流式打字机 / 决策态确认卡）→ notifyItemChanged 单行；
+     * - 其余情况才全量 setItems。
+     */
+    private fun renderIfChanged(list: List<ChatRow>, last: List<ChatRow>?) {
+        if (list === last) return
+        if (last != null && list.size == last.size) {
+            var diffIdx = -1
+            for (i in list.indices) {
+                if (list[i] != last[i]) {
+                    if (diffIdx >= 0) { diffIdx = Int.MIN_VALUE; break }
+                    diffIdx = i
+                }
+            }
+            if (diffIdx == -1) return // 内容完全一致，无需重绘
+            if (diffIdx != Int.MIN_VALUE) {
+                adapter.setItem(diffIdx, list[diffIdx])
+                if (diffIdx >= list.size - 2 && shouldPinBottom()) {
+                    recycler_view.scrollToPosition(list.size - 1)
+                }
+                return
+            }
+        }
+        adapter.setItems(list)
+        if (list.isNotEmpty()) recycler_view.scrollToPosition(list.size - 1)
+    }
+
+    /** 用户是否停留在列表底部附近（决定流式更新时要不要跟随滚动） */
+    private fun shouldPinBottom(): Boolean {
+        if (adapter.itemCount == 0) return true
+        val lm = recycler_view.layoutManager as? LinearLayoutManager ?: return true
+        val lastVisible = lm.findLastCompletelyVisibleItemPosition()
+        return lastVisible == RecyclerView.NO_POSITION || lastVisible >= adapter.itemCount - 2
     }
 
     private fun openReader(nav: AppNav.OpenBook) {

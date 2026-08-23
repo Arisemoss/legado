@@ -8,7 +8,19 @@ import io.legado.app.ai.model.ToolParam
 import io.legado.app.ai.model.ToolResult
 import io.legado.app.ai.tool.ToolContext
 
-/** 读取章节正文：经 bridge 定位书籍并返回原文，供各读书/懂书工具复用 */
+/** 读取章节正文：经 bridge 定位书籍并返回原文，供各读书/懂书工具复用。
+ *  正文超长时头尾截断——避免整章回灌模型导致后续每轮请求暴涨、响应变慢。 */
+private const val MAX_CONTENT_CHARS = 4_000
+private const val HEAD_CHARS = 3_200
+private const val TAIL_CHARS = 800
+
+private fun clipContent(raw: String): String =
+    if (raw.length <= MAX_CONTENT_CHARS) raw
+    else
+        raw.take(HEAD_CHARS) +
+            "\n…（中间省略 ${raw.length - MAX_CONTENT_CHARS} 字）…\n" +
+            raw.takeLast(TAIL_CHARS)
+
 private suspend fun readChapter(
     bridge: AiBridge,
     ctx: ToolContext,
@@ -21,7 +33,16 @@ private suspend fun readChapter(
     return if (content == null) {
         ToolResult(text = Gson().toJson(mapOf("error" to "未找到书籍或章节: $bookName")))
     } else {
-        ToolResult(text = Gson().toJson(mapOf("bookName" to bookName, "content" to content)))
+        ToolResult(
+            text = Gson().toJson(
+                mapOf(
+                    "bookName" to bookName,
+                    "contentLength" to content.length,
+                    "truncated" to (content.length > MAX_CONTENT_CHARS),
+                    "content" to clipContent(content)
+                )
+            )
+        )
     }
 }
 

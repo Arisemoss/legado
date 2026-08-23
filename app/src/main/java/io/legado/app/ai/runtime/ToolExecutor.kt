@@ -27,7 +27,8 @@ sealed class ToolResolution {
 
 class ToolExecutor(
     private val registry: ToolRegistry,
-    private val toolTimeoutMs: Long = 20_000L,
+    // 安全网超时：需大于工具内部限时（书源测试 15s / 章节抓取 15s / 单源搜索 8s）
+    private val toolTimeoutMs: Long = 45_000L,
     private val maxToolRetries: Int = 1
 ) {
 

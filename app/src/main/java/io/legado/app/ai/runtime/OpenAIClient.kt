@@ -5,6 +5,7 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.legado.app.ai.model.AgentErrorCode
 import io.legado.app.ai.model.ChatMessage
+import io.legado.app.ai.model.Usage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType
@@ -15,7 +16,8 @@ import java.util.concurrent.TimeUnit
 
 /**
  * OpenAI 兼容 chat/completions 客户端（DeepSeek/通义/智谱/OpenAI 底层协议一致）。
- * 非流式请求，tools 原样透传，供 Agent 做多轮 function-calling。
+ * 支持非流式与 SSE 流式（stream=true 时逐块回调增量文本，tool_calls 分片自动组装），
+ * tools 原样透传，供 Agent 做多轮 function-calling。
  */
 class OpenAIClient(
     private val baseUrl: String,
@@ -50,6 +52,127 @@ class OpenAIClient(
         } ?: throw AgentException(AgentErrorCode.NETWORK_UNAVAILABLE, "empty body")
         if (respBody.isBlank()) throw AgentException(AgentErrorCode.NETWORK_UNAVAILABLE, "empty body")
         parseCompletion(respBody)
+    }
+
+    override suspend fun completeStreaming(
+        messages: List<ChatMessage>,
+        tools: List<Map<String, Any>>?,
+        onDelta: (String) -> Unit,
+        isCancelled: () -> Boolean
+    ): ChatCompletion = withContext(Dispatchers.IO) {
+        val body = buildBody(messages, tools, stream = true)
+        val req = Request.Builder()
+            .url("${normalizeBase(baseUrl)}/chat/completions")
+            .header("Authorization", "Bearer $apiKey")
+            .header("Content-Type", "application/json")
+            .header("Accept", "text/event-stream")
+            .post(RequestBody.create(JSON_MEDIA, body))
+            .build()
+
+        val content = StringBuilder()
+        val callIds = HashMap<Int, String>()
+        val callNames = HashMap<Int, String>()
+        val callArgs = HashMap<Int, StringBuilder>()
+        var usage: Usage? = null
+        var sawSseData = false
+        val rawFallback = StringBuilder()
+
+        try {
+            client.newCall(req).execute().use { resp ->
+                val respBody = resp.body()
+                    ?: throw AgentException(AgentErrorCode.NETWORK_UNAVAILABLE, "empty body")
+                if (!resp.isSuccessful) {
+                    throw AgentException(
+                        AgentErrorCode.AUTH_FAILED,
+                        "HTTP ${resp.code()}: ${respBody.string().take(200)}"
+                    )
+                }
+                val source = respBody.source()
+                while (true) {
+                    if (isCancelled()) break
+                    val line = source.readUtf8Line() ?: break
+                    // 仅在尚未确认是 SSE 时保留原始行（供非流式回退解析），避免长回答双倍内存
+                    if (!sawSseData) rawFallback.append(line).append('\n')
+                    if (!line.startsWith("data:")) continue // 空行 / ": keep-alive" 注释行
+                    val payload = line.removePrefix("data:").trim()
+                    if (payload == "[DONE]") break
+                    sawSseData = true
+                    consumeChunk(
+                        payload, content, onDelta,
+                        callIds, callNames, callArgs
+                    ) { u -> usage = u }
+                }
+            }
+        } catch (e: AgentException) {
+            throw e
+        } catch (e: Exception) {
+            // 已有部分内容时视为提前结束（网络中断），否则按错误抛出
+            if (sawSseData && (content.isNotEmpty() || callIds.isNotEmpty())) Unit
+            else throw AgentException(AgentErrorCode.NETWORK_UNAVAILABLE, e.localizedMessage ?: "stream error")
+        }
+
+        // 服务端不支持流式（返回了普通 JSON）：回退非流式解析
+        if (!sawSseData && content.isEmpty() && callIds.isEmpty()) {
+            return@withContext parseCompletion(rawFallback.toString())
+        }
+
+        val calls = callIds.keys.toSortedSet().mapNotNull { idx ->
+            val name = callNames[idx] ?: return@mapNotNull null
+            ToolCallData(id = callIds[idx] ?: "", name = name, arguments = callArgs[idx]?.toString() ?: "{}")
+        }
+        ChatCompletion(
+            content = content.toString().ifEmpty { null },
+            toolCalls = calls.ifEmpty { null },
+            usage = usage
+        )
+    }
+
+    /** 解析单个 SSE data 块：content 增量回调、tool_calls 分片累积、usage 提取 */
+    private inline fun consumeChunk(
+        payload: String,
+        content: StringBuilder,
+        onDelta: (String) -> Unit,
+        callIds: MutableMap<Int, String>,
+        callNames: MutableMap<Int, String>,
+        callArgs: MutableMap<Int, StringBuilder>,
+        setUsage: (Usage?) -> Unit
+    ) {
+        val root = try {
+            JsonParser.parseString(payload).asJsonObject
+        } catch (_: Exception) {
+            return
+        }
+        root.getAsJsonObject("error")?.let {
+            throw AgentException(AgentErrorCode.AUTH_FAILED, it["message"]?.asString ?: "api error")
+        }
+        (root.getAsJsonArray("choices")?.firstOrNull() as? JsonObject)?.let { choice ->
+            val delta = choice.getAsJsonObject("delta") ?: JsonObject()
+            delta.get("content")?.takeIf { !it.isJsonNull }?.asString?.let { piece ->
+                if (piece.isNotEmpty()) {
+                    content.append(piece)
+                    onDelta(piece)
+                }
+            }
+            delta.getAsJsonArray("tool_calls")?.forEach { tcEl ->
+                val tc = tcEl.asJsonObject
+                val idx = tc.get("index")?.asInt ?: callIds.size
+                tc.get("id")?.takeIf { !it.isJsonNull }?.asString?.let { callIds[idx] = it }
+                val fn = tc.getAsJsonObject("function")
+                fn?.get("name")?.takeIf { !it.isJsonNull }?.asString?.let { callNames[idx] = it }
+                fn?.get("arguments")?.takeIf { !it.isJsonNull }?.asString?.let { frag ->
+                    callArgs.getOrPut(idx) { StringBuilder() }.append(frag)
+                }
+            }
+        }
+        root.getAsJsonObject("usage")?.let { u ->
+            setUsage(
+                Usage(
+                    promptTokens = u.get("prompt_tokens")?.asInt,
+                    completionTokens = u.get("completion_tokens")?.asInt,
+                    totalTokens = u.get("total_tokens")?.asInt
+                )
+            )
+        }
     }
 
     private fun buildBody(messages: List<ChatMessage>, tools: List<Map<String, Any>>?, stream: Boolean): String {

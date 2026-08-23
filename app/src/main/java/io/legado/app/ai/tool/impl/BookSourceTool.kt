@@ -68,8 +68,19 @@ class ListBookSourcesTool(private val analyzer: BookSourceAnalyzer) : ToolDefini
 
     override suspend fun execute(ctx: ToolContext, args: Map<String, Any?>): ToolResult =
         runCatching {
-            val list = analyzer.list()
-            ToolResult(text = Gson().toJson(mapOf("sources" to list)))
+            val all = analyzer.list()
+            // 书源可能数百个：截断返回，避免工具结果撑爆模型上下文
+            val shown = all.take(50)
+            ToolResult(
+                text = Gson().toJson(
+                    mapOf(
+                        "total" to all.size,
+                        "shown" to shown.size,
+                        "sources" to shown,
+                        "note" to if (all.size > shown.size) "仅展示前 ${shown.size} 个，可让用户在书源管理页查看全部" else ""
+                    )
+                )
+            )
         }.getOrElse { ToolResult(text = """{"error":${Gson().toJson(it.localizedMessage)}}""") }
 }
 

@@ -10,43 +10,57 @@ import io.legado.app.model.webBook.WebBook
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
 /**
- * [BookFetcher] 默认实现：跨已启用书源并行/顺序搜索，返回书名/作者/来源。
+ * [BookFetcher] 默认实现：跨已启用书源**并行**搜索（单源 8s 超时），
+ * 返回书名/作者/来源。并行化后整体耗时≈最慢单源，而非各源之和。
  */
 class DefaultBookFetcher : BookFetcher {
 
+    companion object {
+        private const val MAX_SOURCES = 6
+        private const val PER_SOURCE_TIMEOUT_MS = 8_000L
+    }
+
     override suspend fun search(keyword: String, limit: Int): List<Map<String, Any>> =
         withContext(Dispatchers.IO) {
-            val result = ArrayList<Map<String, Any>>()
             val seen = HashSet<String>()
-            val sources = App.db.bookSourceDao().allEnabled.take(5)
-            for (source in sources) {
-                if (result.size >= limit) break
-                val found = try {
-                    WebBook(source).searchBookSuspend(
-                        scope = CoroutineScope(Dispatchers.IO),
-                        key = keyword,
-                        page = 1
-                    )
-                } catch (_: Exception) {
-                    arrayListOf<SearchBook>()
-                }
-                for (book in found) {
-                    if (result.size >= limit) break
-                    if (!seen.add(book.name)) continue
-                    result.add(
-                        mapOf(
-                            "name" to book.name,
-                            "author" to book.author,
-                            "from" to (book.originName.ifBlank { book.origin })
-                        )
-                    )
-                }
+            val sources = App.db.bookSourceDao().allEnabled
+                .filter { !it.searchUrl.isNullOrBlank() }
+                .take(MAX_SOURCES)
+            // 并行发起全部书源搜索，单源限时，失败静默跳过
+            val found = coroutineScope {
+                sources.map { source ->
+                    async {
+                        try {
+                            withTimeoutOrNull(PER_SOURCE_TIMEOUT_MS) {
+                                WebBook(source).searchBookSuspend(
+                                    scope = CoroutineScope(Dispatchers.IO),
+                                    key = keyword,
+                                    page = 1
+                                )
+                            } ?: emptyList()
+                        } catch (_: Exception) {
+                            emptyList<SearchBook>()
+                        }
+                    }
+                }.awaitAll()
             }
-            result
+            found.flatten()
+                .filter { seen.add(it.name) }   // 按书源优先级去重
+                .take(limit)
+                .map { book ->
+                    mapOf(
+                        "name" to book.name,
+                        "author" to book.author,
+                        "from" to (book.originName.ifBlank { book.origin })
+                    )
+                }
         }
 
     override suspend fun recommendByName(name: String): List<Map<String, Any>> = search(name, 5)
@@ -73,11 +87,14 @@ class DefaultChapterReader : ChapterReader {
                     val source = App.db.bookSourceDao().getBookSource(book.origin)
                     content = if (source != null) {
                         try {
-                            WebBook(source).getContentSuspend(
-                                book = book,
-                                bookChapter = chapter,
-                                scope = CoroutineScope(Dispatchers.IO)
-                            )
+                            // 联网抓取限时 15s，防止慢源拖死整个工具调用
+                            withTimeoutOrNull(15_000L) {
+                                WebBook(source).getContentSuspend(
+                                    book = book,
+                                    bookChapter = chapter,
+                                    scope = CoroutineScope(Dispatchers.IO)
+                                )
+                            }
                         } catch (_: Exception) {
                             null
                         }

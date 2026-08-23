@@ -10,6 +10,13 @@ import io.legado.app.ai.model.ToolResult
 import io.legado.app.ai.model.ToolResultState
 import io.legado.app.ai.tool.ToolContext
 
+/** 布尔参数兜底解析：模型可能传 Boolean、"true"/"True"/"1" 等多种形态 */
+internal fun boolArg(v: Any?, def: Boolean): Boolean = when (v) {
+    is Boolean -> v
+    is String -> v.trim().equals("true", ignoreCase = true) || v.trim() == "1"
+    else -> def
+}
+
 /** 书源：启用/禁用（写操作，两阶段确认） */
 class SetSourceEnabledTool(private val bridge: AiBridge) : ToolDefinition {
     override val id = "set_source_enabled"
@@ -27,7 +34,7 @@ class SetSourceEnabledTool(private val bridge: AiBridge) : ToolDefinition {
 
     override suspend fun execute(ctx: ToolContext, args: Map<String, Any?>): ToolResult {
         val url = args["url"]?.toString() ?: return ToolResult(text = """{"error":"缺少书源URL"}""")
-        val enabled = args["enabled"]?.toString()?.toBoolean() ?: true
+        val enabled = boolArg(args["enabled"], true)
         return ToolResult(
             text = Gson().toJson(
                 mapOf("status" to "pending_confirm", "proposal" to mapOf("url" to url, "enabled" to enabled))
@@ -38,7 +45,7 @@ class SetSourceEnabledTool(private val bridge: AiBridge) : ToolDefinition {
 
     override suspend fun onApproved(ctx: ToolContext, args: Map<String, Any?>): ToolResult {
         val url = args["url"]?.toString() ?: return ToolResult(text = """{"error":"缺少书源URL"}""")
-        val enabled = args["enabled"]?.toString()?.toBoolean() ?: true
+        val enabled = boolArg(args["enabled"], true)
         return ToolResult(text = Gson().toJson(bridge.appController.enableSource(url, enabled)))
     }
 }

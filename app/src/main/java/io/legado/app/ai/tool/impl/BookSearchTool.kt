@@ -25,9 +25,12 @@ class SearchBooksTool(private val fetcher: BookFetcher) : ToolDefinition {
 
     override suspend fun execute(ctx: ToolContext, args: Map<String, Any?>): ToolResult {
         val kw = args["keyword"]?.toString() ?: return ToolResult(text = """{"error":"缺少关键词"}""")
-        val limit = (args["limit"] as? Double)?.toInt() ?: 5
+        // 模型可能把数字传成字符串，统一兜底解析并限制范围
+        val limit = (args["limit"] as? Double)?.toInt()
+            ?: args["limit"]?.toString()?.trim()?.toDoubleOrNull()?.toInt()
+            ?: 5
         return runCatching {
-            val books = fetcher.search(kw, limit)
+            val books = fetcher.search(kw, limit.coerceIn(1, 20))
             if (books.isEmpty()) {
                 ToolResult(text = """{"message":"未找到相关书籍"}""")
             } else {
