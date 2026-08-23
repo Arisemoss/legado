@@ -52,7 +52,9 @@ object AiPlatform {
      */
     fun syncConfig() {
         synchronized(lock) {
-            val cfg = ModelManager.getConfig()
+            // 防御：历史坏数据(如键类型冲突)不应导致宿主页面崩溃，保持旧配置继续可用
+            val cfg = runCatching { ModelManager.getConfig() }.getOrElse { lastConfig }
+                ?: return
             if (initialized && cfg == lastConfig) return
             val client = OpenAIClient(
                 baseUrl = cfg.baseUrl,
