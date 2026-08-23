@@ -22,13 +22,15 @@ data class ConfirmRequest(val confirmToken: String, val proposal: Map<String, An
 
 class ToolContext(
     var sessionId: Long,
-    val preset: AiPreset = AiPreset(),
+    preset: AiPreset = AiPreset(),
     val onConfirmRequested: MutableStateFlow<ConfirmRequest?> = MutableStateFlow(null),
     val onNavigate: MutableStateFlow<io.legado.app.ai.bridge.AppNav?> = MutableStateFlow(null),
     val onToolEvent: MutableStateFlow<ToolEvent?> = MutableStateFlow(null),
     /** 流式输出的累积增量文本；null 表示当前没有进行中的流式回答 */
     val onPartialText: MutableStateFlow<String?> = MutableStateFlow(null)
 ) {
+    /** 上下文预设（当前书/章节等）；后台任务中心按任务注入，故为可变 */
+    var preset: AiPreset = preset
     val stopRequested = MutableStateFlow(false)
 
     /** 是否允许写操作二次确认；置 false 进入「无确认」上下文，写类工具会被前置拒绝（Harness 审批分级） */

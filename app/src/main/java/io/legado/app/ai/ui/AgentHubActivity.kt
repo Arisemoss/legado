@@ -66,6 +66,7 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
         private const val VT_TOOL = 2
         private const val VT_ERROR = 3
         private const val VT_CONFIRM = 4
+        private const val VT_PROCESS = 5
     }
 
     private lateinit var adapter: ChatAdapter
@@ -211,25 +212,27 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
             var lastRendered: List<ChatRow>? = null
             var lastBusy: Boolean? = null
             while (isActive) {
-                val base = vm.messages.value
                 val partial = vm.currentPartial()
-                // 固定时间戳：避免每 tick 重建导致 diff 恒不等、时间显示跳动
-                val list = if (partial != null) {
-                    base + ChatRow.Msg(
-                        ROW_STREAMING, "assistant", partial,
-                        if (streamingStartMs > 0) streamingStartMs else System.currentTimeMillis()
-                    )
-                } else base
+                // 先做「思考过程折叠」，再叠加流式打字机气泡
+                val list = run {
+                    val folded = foldProcess(vm.messages.value)
+                    if (partial != null) {
+                        folded + ChatRow.Msg(
+                            ROW_STREAMING, "assistant", partial,
+                            if (streamingStartMs > 0) streamingStartMs else System.currentTimeMillis()
+                        )
+                    } else folded
+                }
 
                 val isEmpty = list.isEmpty()
                 box_empty.visibility = if (isEmpty) View.VISIBLE else View.GONE
                 recycler_view.visibility = if (isEmpty) View.GONE else View.VISIBLE
-                val busyNow = vm.busy.value
+                val busyNow = vm.isBusy()
                 chips_scroll.visibility =
                     if (!busyNow || isEmpty) View.VISIBLE else View.GONE
                 // 首个 token 到达前显示"思考中"，出字后由打字机气泡接管；
                 // 省略号逐帧推进（RikkaHub 思考指示风格）
-                if (vm.typing.value && partial == null) {
+                if (vm.isTyping()) {
                     typingTick++
                     tv_typing.text = "思考中" + "·".repeat(typingTick % 4)
                     typing_bar.visibility = View.VISIBLE
@@ -299,6 +302,67 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
         val lm = recycler_view.layoutManager as? LinearLayoutManager ?: return true
         val lastVisible = lm.findLastCompletelyVisibleItemPosition()
         return lastVisible == RecyclerView.NO_POSITION || lastVisible >= adapter.itemCount - 2
+    }
+
+    // ---------- 思考过程折叠（RikkaHub ChainOfThought 风格） ----------
+
+    /** 每个回合的折叠状态（key=用户消息行 key），会话级记忆 */
+    private val collapsedTurns = HashSet<String>()
+
+    /**
+     * 把每个用户回合内的「工作过程」行（工具卡/错误条）归组到可折叠头之下：
+     * - 折叠时仅显示 `▸ 工作过程 · N 步` 头，工具卡隐藏
+     * - 确认卡永远外显（等待决策时不可藏）
+     * - 最终回答与流式气泡不受影响
+     */
+    private fun foldProcess(rows: List<ChatRow>): List<ChatRow> {
+        if (rows.none { it is ChatRow.ToolCard || it is ChatRow.ErrorRow }) return rows
+        val out = ArrayList<ChatRow>(rows.size + 4)
+        var i = 0
+        while (i < rows.size) {
+            val r = rows[i]
+            out.add(r)
+            if (r is ChatRow.Msg && r.role == "user") {
+                val proc = ArrayList<ChatRow>()
+                var j = i + 1
+                while (j < rows.size && rows[j] !is ChatRow.Msg) {
+                    when (rows[j]) {
+                        is ChatRow.ToolCard, is ChatRow.ErrorRow -> proc.add(rows[j])
+                        else -> out.add(rows[j]) // Confirm 等保持原位外显
+                    }
+                    j++
+                }
+                if (proc.isNotEmpty()) {
+                    val expanded = r.key !in collapsedTurns
+                    // 折叠头紧随用户消息；展开时其后紧跟过程行
+                    out.add(ChatRow.Process("proc_${r.key}", proc.size, expanded))
+                    if (expanded) out.addAll(proc)
+                }
+                i = j
+                continue
+            }
+            i++
+        }
+        return out
+    }
+
+    private fun toggleProcess(turnKey: String) {
+        if (!collapsedTurns.remove(turnKey)) collapsedTurns.add(turnKey)
+        // 立即重渲染（不等下一个 tick），保证点击手感
+        renderNow()
+    }
+
+    private fun renderNow() {
+        val partial = vm.currentPartial()
+        val folded = foldProcess(vm.messages.value)
+        val list = if (partial != null) {
+            folded + ChatRow.Msg(
+                ROW_STREAMING, "assistant", partial,
+                if (streamingStartMs > 0) streamingStartMs else System.currentTimeMillis()
+            )
+        } else folded
+        adapter.setItems(list)
+        if (list.isNotEmpty()) recycler_view.scrollToPosition(list.size - 1)
     }
 
     private fun openReader(nav: AppNav.OpenBook) {
@@ -471,6 +535,25 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
                     override fun registerListener(holder: ItemViewHolder) {}
                 })
             addItemViewDelegate(
+                VT_PROCESS,
+                object : ItemViewDelegate<ChatRow>(context, R.layout.ai_item_process) {
+                    override fun convert(holder: ItemViewHolder, item: ChatRow, payloads: MutableList<Any>) {
+                        val p = item as ChatRow.Process
+                        holder.itemView.tv_proc_label.text =
+                            (if (p.expanded) "▾" else "▸") + " 工作过程 · ${p.steps} 步"
+                    }
+
+                    override fun registerListener(holder: ItemViewHolder) {
+                        holder.itemView.tv_proc_label.onClick {
+                            getItem(holder.layoutPosition)?.let { row ->
+                                if (row is ChatRow.Process) {
+                                    toggleProcess(row.key.removePrefix("proc_"))
+                                }
+                            }
+                        }
+                    }
+                })
+            addItemViewDelegate(
                 VT_CONFIRM,
                 object : ItemViewDelegate<ChatRow>(context, R.layout.ai_item_confirm) {
                     override fun convert(holder: ItemViewHolder, item: ChatRow, payloads: MutableList<Any>) {
@@ -518,6 +601,7 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
             is ChatRow.ToolCard -> VT_TOOL
             is ChatRow.ErrorRow -> VT_ERROR
             is ChatRow.Confirm -> VT_CONFIRM
+            is ChatRow.Process -> VT_PROCESS
         }
 
         private fun formatElapsed(ms: Long): String =
