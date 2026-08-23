@@ -30,7 +30,6 @@ import io.legado.app.ui.config.ConfigActivity
 import io.legado.app.ui.config.ConfigViewModel
 import io.legado.app.ui.main.MainActivity
 import io.legado.app.utils.getPrefBoolean
-import io.legado.app.utils.getPrefInt
 import io.legado.app.utils.getPrefString
 import kotlinx.android.synthetic.main.activity_agent_hub.*
 import kotlinx.android.synthetic.main.ai_item_confirm.view.*
@@ -80,6 +79,9 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
     private var lastBgPath: String? = null
     private var typingTick = 0
 
+    /** 本轮流式回答的固定起始时间（时间戳不随轮询 tick 跳动） */
+    private var streamingStartMs = 0L
+
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         vm = AgentHubViewModel(readPreset())
         adapter = ChatAdapter(this)
@@ -118,7 +120,10 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
                     iv_chat_bg.setImageBitmap(decodeSampled(File(path)))
                 }
             }
-            iv_chat_bg.alpha = getPrefInt(PreferKey.aiChatBgOpacity, 60).coerceIn(10, 100) / 100f
+            // ListPreference 持久化为 String，必须按 String 读取再转 Int
+            // （用 getPrefInt 读会抛 ClassCastException，同 ai_stream 历史事故）
+            val opacity = getPrefString(PreferKey.aiChatBgOpacity)?.toIntOrNull() ?: 60
+            iv_chat_bg.alpha = opacity.coerceIn(10, 100) / 100f
             iv_chat_bg.visibility = View.VISIBLE
             view_scrim.visibility = View.VISIBLE
         } else {
@@ -166,6 +171,7 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
             val text = et_input.text?.toString()?.trim().orEmpty()
             if (text.isEmpty()) return@onClick
             et_input.setText("")
+            streamingStartMs = System.currentTimeMillis()
             vm.send(text)
         }
         btn_stop.onClick { vm.stop() }
@@ -207,8 +213,12 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
             while (isActive) {
                 val base = vm.messages.value
                 val partial = vm.currentPartial()
+                // 固定时间戳：避免每 tick 重建导致 diff 恒不等、时间显示跳动
                 val list = if (partial != null) {
-                    base + ChatRow.Msg(ROW_STREAMING, "assistant", partial)
+                    base + ChatRow.Msg(
+                        ROW_STREAMING, "assistant", partial,
+                        if (streamingStartMs > 0) streamingStartMs else System.currentTimeMillis()
+                    )
                 } else base
 
                 val isEmpty = list.isEmpty()

@@ -80,7 +80,8 @@ class AgentHubViewModel(
      * Operit 式文本工具协议说明，让不支持 tools 参数的模型也能调用工具。
      */
     private val systemPrompt by lazy {
-        val protocol = App.INSTANCE.getPrefString(PreferKey.aiToolProtocol, "auto") ?: "auto"
+        val defaultProtocol = io.legado.app.ai.model.AiModelConfig.PROTOCOL_AUTO
+        val protocol = App.INSTANCE.getPrefString(PreferKey.aiToolProtocol, defaultProtocol) ?: defaultProtocol
         SystemPromptBuilder(
             SkillRegistry(),
             if (protocol == "native") null else AiPlatform.registry

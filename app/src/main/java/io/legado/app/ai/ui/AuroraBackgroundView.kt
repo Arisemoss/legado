@@ -129,6 +129,12 @@ class AuroraBackgroundView @JvmOverloads constructor(
         animator.start()
     }
 
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(visibility)
+        // App 退后台时停帧省电；回前台自动恢复
+        if (visibility == View.VISIBLE) animator.start() else animator.cancel()
+    }
+
     override fun onDetachedFromWindow() {
         animator.cancel()
         super.onDetachedFromWindow()
