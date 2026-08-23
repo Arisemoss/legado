@@ -4,16 +4,17 @@ import io.legado.app.App
 import io.legado.app.ai.AiPlatform
 import io.legado.app.ai.log.AiLog
 import io.legado.app.ai.model.AiProviderPresets
+import io.legado.app.ai.model.AiModelConfig
 import io.legado.app.ai.model.ChatMessage
 import io.legado.app.ai.model.ToolEvent
 import io.legado.app.ai.runtime.AgentResult
 import io.legado.app.ai.runtime.AgentResultState
+import io.legado.app.ai.runtime.AgentTaskCenter
 import io.legado.app.ai.runtime.ConversationService
 import io.legado.app.ai.runtime.SystemPromptBuilder
 import io.legado.app.ai.skill.SkillRegistry
 import io.legado.app.ai.tool.AiPreset
 import io.legado.app.ai.tool.ConfirmRequest
-import io.legado.app.ai.tool.ToolContext
 import io.legado.app.constant.PreferKey
 import io.legado.app.data.entities.AiSession
 import io.legado.app.utils.getPrefString
@@ -58,12 +59,21 @@ sealed class ChatRow {
         val proposalText: String,
         val decided: Boolean?
     ) : ChatRow()
+
+    /** 思考过程折叠头（RikkaHub ChainOfThought 风格）：点击展开/收起本回合工具步骤 */
+    data class Process(
+        override val key: String,
+        val steps: Int,
+        val expanded: Boolean
+    ) : ChatRow()
 }
 
 /**
- * Agent Hub 会话状态：拉通「对话 → AgentRuntime → 回流消息/工具卡片/确认」。
- * 会话经 [ConversationService] 落库，重开 App 可恢复历史并续聊。
- * 工具事件经 [ToolContext.onToolEvent] 实时回流为聊天内的工具卡片。
+ * Agent Hub 会话状态：拉通「对话 → [AgentTaskCenter] 后台任务 → 回流消息/工具卡片/确认」。
+ *
+ * 任务运行在进程级任务中心上——用户离开 Hub 去看书，任务照常执行并在完成后
+ * 落库/发通知；重新进入 Hub 自动重新绑定到进行中任务的回流（工具卡/打字机）。
+ * 会话经 [ConversationService] 持久化，重开 App 可恢复历史并续聊。
  */
 class AgentHubViewModel(
     private val preset: AiPreset = AiPreset()
@@ -75,29 +85,28 @@ class AgentHubViewModel(
     private val conversation by lazy { ConversationService(window = windowSize()) }
     private val runtime get() = AiPlatform.runtime
 
+    /** 共享工具上下文：与后台任务中心同源，保证离开页面后事件仍回流到本 VM 的轮询 */
+    private val ctx get() = AgentTaskCenter.sharedCtx
+
     /**
      * 系统提示：native 模式只走原生函数调用；auto/text 模式额外注入
      * Operit 式文本工具协议说明，让不支持 tools 参数的模型也能调用工具。
      */
     private val systemPrompt by lazy {
-        val defaultProtocol = io.legado.app.ai.model.AiModelConfig.PROTOCOL_AUTO
-        val protocol = App.INSTANCE.getPrefString(PreferKey.aiToolProtocol, defaultProtocol) ?: defaultProtocol
+        val defaultProtocol = AiModelConfig.PROTOCOL_AUTO
+        val protocol =
+            App.INSTANCE.getPrefString(PreferKey.aiToolProtocol, defaultProtocol) ?: defaultProtocol
         SystemPromptBuilder(
             SkillRegistry(),
-            if (protocol == "native") null else AiPlatform.registry
+            if (protocol == AiModelConfig.PROTOCOL_NATIVE) null else AiPlatform.registry
         ).build()
     }
 
     private var scope: CoroutineScope? = null
     private val vmJobs = ArrayList<Job>()
-    private var runJob: Job? = null
-
-    private lateinit var ctx: ToolContext
 
     val sessionId = MutableStateFlow(-1L)
     val messages = MutableStateFlow<List<ChatRow>>(emptyList())
-    val typing = MutableStateFlow(false)
-    val busy = MutableStateFlow(false)
     val statusLine = MutableStateFlow("")
     val sessions = MutableStateFlow<List<AiSession>>(emptyList())
 
@@ -111,13 +120,37 @@ class AgentHubViewModel(
 
     private val timeFmt = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
 
+    // ---------- 状态查询（替代原 busy/typing StateFlow，与后台任务中心对齐） ----------
+
+    fun isBusy(): Boolean = AgentTaskCenter.isBusy()
+
+    /** 「思考中」：任务运行但尚未收到首个流式 token */
+    fun isTyping(): Boolean = isBusy() && currentPartialRaw() == null
+
+    private fun currentPartialRaw(): String? =
+        ctx.onPartialText.value?.takeIf { it.isNotBlank() }
+
+    /** 当前流式输出的累积文本；null 表示没有进行中的打字机气泡 */
+    fun currentPartial(): String? = if (isBusy()) currentPartialRaw() else null
+
     // ---------- 生命周期 ----------
+
+    private val taskListener = object : AgentTaskCenter.FinishListener {
+        override fun onTaskFinished(sessionId: Long, prompt: String, result: AgentResult) {
+            if (sessionId == this@AgentHubViewModel.sessionId.value) {
+                appendAssistantResult(sessionId, prompt, result)
+            }
+            scope?.launch { refreshSessions() }
+            ctx.onConfirmRequested.value = null
+            pendingConfirmToken = null
+        }
+    }
 
     /** 绑定 UI 协程作用域，启动内部收集器；由 Activity onCreate 调用一次 */
     fun attach(scope: CoroutineScope) {
         if (this.scope != null) return
         this.scope = scope
-        ctx = ToolContext(sessionId = -1L, preset = preset)
+        AgentTaskCenter.addFinishListener(taskListener)
 
         vmJobs += scope.launch {
             while (isActive) {
@@ -142,20 +175,11 @@ class AgentHubViewModel(
         }
     }
 
-    /** 当前流式输出的累积文本；null 表示没有进行中的打字机气泡 */
-    fun currentPartial(): String? =
-        if (this::ctx.isInitialized && busy.value) {
-            ctx.onPartialText.value?.takeIf { it.isNotBlank() }
-        } else null
-
     fun dispose() {
+        // 注意：不停止后台任务——离开页面后任务继续执行（RikkaHub 式后台生成）
+        AgentTaskCenter.removeFinishListener(taskListener)
         vmJobs.forEach { it.cancel() }
         vmJobs.clear()
-        runJob?.cancel()
-        if (this::ctx.isInitialized) {
-            ctx.stopRequested.value = true
-            ctx.onPartialText.value = null
-        }
     }
 
     /** 初始化：优先续接最近会话（实现跨次打开的连续对话），否则新建 */
@@ -251,47 +275,24 @@ class AgentHubViewModel(
     // ---------- 发送与停止 ----------
 
     fun send(text: String) {
-        if (text.isBlank() || busy.value) return
+        if (text.isBlank() || AgentTaskCenter.isBusy()) return
         val sid = sessionId.value
         if (sid <= 0) return
-        ctx.stopRequested.value = false
-        if (this::ctx.isInitialized) ctx.onPartialText.value = null // 清残留打字机气泡
         AiLog.i("Hub", "用户发送: \"${text.take(100)}\" (session=$sid)")
         appendRow(ChatRow.Msg(nextKey(), "user", text))
-        typing.value = true
-        busy.value = true
+        maybeRename(sid, text)
 
-        runJob = scope?.launch {
-            runCatching { conversation.appendText(sid, "user", text) }
-            maybeRename(sid, text)
-
-            val history = turns.flatMap { (u, a) ->
-                listOf(ChatMessage("user", u), ChatMessage("assistant", a))
-            }
-            val result: AgentResult = runCatching {
-                runtime.execute(text, history, ctx, systemPrompt)
-            }.getOrElse {
-                AiLog.e("Hub", "execute 异常", it)
-                AgentResult(it.localizedMessage ?: "执行出错", AgentResultState.ERROR)
-            }
-
-            typing.value = false
-            busy.value = false
-            ctx.onPartialText.value = null
-            if (result.state != AgentResultState.DONE) {
-                AiLog.w("Hub", "回答结束 state=${result.state} rounds=${result.rounds} tokens=${result.tokensUsed}")
-            } else {
-                AiLog.i("Hub", "回答完成: ${result.answer.length}字, ${result.rounds}轮, ${result.tokensUsed} tokens")
-            }
-            appendAssistantResult(sid, text, result)
-            refreshSessions()
-            // 清空桥接层遗留的确认源
-            ctx.onConfirmRequested.value = null
-            pendingConfirmToken = null
+        val history = turns.flatMap { (u, a) ->
+            listOf(ChatMessage("user", u), ChatMessage("assistant", a))
+        }
+        val started = AgentTaskCenter.start(sid, text, history, systemPrompt, preset)
+        if (!started) {
+            appendRow(ChatRow.ErrorRow(nextKey(), "已有任务进行中"))
         }
     }
 
-    private suspend fun appendAssistantResult(sid: Long, prompt: String, result: AgentResult) {
+    private fun appendAssistantResult(sid: Long, prompt: String, result: AgentResult) {
+        // 结果已由任务中心落库，这里仅做 UI 行与轮次记忆
         val answer = result.answer.ifBlank {
             when (result.state) {
                 AgentResultState.STOPPED -> "已停止。"
@@ -299,7 +300,6 @@ class AgentHubViewModel(
             }
         }
         appendRow(ChatRow.Msg(nextKey(), "assistant", answer))
-        runCatching { conversation.appendText(sid, "assistant", answer) }
         turns.add(prompt to answer)
 
         when (result.state) {
@@ -313,8 +313,7 @@ class AgentHubViewModel(
     }
 
     fun stop() {
-        ctx.stopRequested.value = true
-        typing.value = false
+        AgentTaskCenter.stop()
     }
 
     /** 确认卡的同意/拒绝入口 */
@@ -329,11 +328,10 @@ class AgentHubViewModel(
     }
 
     private fun ensureIdle() {
-        if (busy.value) {
+        // 切换/删除会话前必须终止进行中的任务，防止写入目标之外的会话
+        if (AgentTaskCenter.isBusy()) {
             stop()
         }
-        runJob?.cancel()
-        runJob = null
     }
 
     // ---------- 辅助 ----------

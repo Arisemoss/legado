@@ -37,4 +37,13 @@
         android:layout_height="match_parent"
         android:visibility="gone" />
 
+    <!-- AI 悬浮球：右下角，可拖拽贴边半透明隐藏 -->
+    <io.legado.app.ai.ui.AIFloatBallView
+        android:id="@+id/ai_float_ball"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginBottom="120dp"
+        android:layout_marginEnd="16dp" />
+
 </FrameLayout>

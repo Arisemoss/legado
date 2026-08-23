@@ -79,4 +79,8 @@ object PreferKey {
 
     // AI 工具调用协议（Operit 兼容层）：auto | native | text
     const val aiToolProtocol = "ai_tool_protocol"
+
+    // 阅读页 AI 悬浮球位置记忆
+    const val aiFloatBallSide = "ai_float_ball_side"
+    const val aiFloatBallYRatio = "ai_float_ball_y_ratio"
 }
