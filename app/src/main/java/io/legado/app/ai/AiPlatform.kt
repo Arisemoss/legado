@@ -32,6 +32,13 @@ object AiPlatform {
     lateinit var bridge: AiBridge
         private set
 
+    /**
+     * 全局工具注册表。与模型配置解耦：init() 时装配一次，
+     * 供 AgentRuntime 执行与 SystemPromptBuilder 生成文本协议工具清单。
+     */
+    lateinit var registry: io.legado.app.ai.tool.ToolRegistry
+        private set
+
     /** 当前生效的配置（供 UI 状态栏显示） */
     val config: AiModelConfig? get() = lastConfig
 
@@ -44,6 +51,7 @@ object AiPlatform {
             sourceAnalyzer = DefaultBookSourceAnalyzer(),
             appController = DefaultAppController()
         )
+        registry = buildRegistry(bridge)
         syncConfig()
     }
 
@@ -70,17 +78,18 @@ object AiPlatform {
             )
             runtime = AgentRuntime(
                 client = client,
-                registry = buildRegistry(bridge),
+                registry = registry,
                 maxRounds = cfg.maxRounds,
                 maxTokens = 16_000L,
                 confirmTimeoutMs = cfg.timeoutMillis,
-                preferStream = cfg.stream
+                preferStream = cfg.stream,
+                toolProtocol = cfg.toolProtocol
             )
             lastConfig = cfg
             initialized = true
             AiLog.i(
                 "Config",
-                "运行时已重建: model=${cfg.name}, baseUrl=${cfg.baseUrl}, stream=${cfg.stream}, maxRounds=${cfg.maxRounds}, key=${AiLog.mask(cfg.apiKey)}"
+                "运行时已重建: model=${cfg.name}, baseUrl=${cfg.baseUrl}, stream=${cfg.stream}, maxRounds=${cfg.maxRounds}, protocol=${cfg.toolProtocol}, key=${AiLog.mask(cfg.apiKey)}"
             )
         }
     }

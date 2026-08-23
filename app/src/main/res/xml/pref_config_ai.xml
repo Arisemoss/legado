@@ -38,6 +38,15 @@
         android:defaultValue="false"
         app:iconSpaceReserved="false" />
 
+    <ListPreference
+        android:key="ai_tool_protocol"
+        android:title="工具调用协议"
+        android:summary="auto=原生+文本双通道；text 兼容不支持函数调用的服务商"
+        android:defaultValue="auto"
+        android:entries="@array/ai_tool_protocol_entries"
+        android:entryValues="@array/ai_tool_protocol_values"
+        app:iconSpaceReserved="false" />
+
     <io.legado.app.ui.widget.prefs.EditTextPreference
         android:key="ai_timeout"
         android:title="轮询超时(毫秒)"

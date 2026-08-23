@@ -10,6 +10,7 @@ import io.legado.app.ai.model.AgentErrorCode
 import io.legado.app.ai.model.ToolEvent
 import io.legado.app.ai.log.AiLog
 import io.legado.app.ai.tool.ConfirmRequest
+import io.legado.app.ai.tool.TextToolCallParser
 import io.legado.app.ai.tool.ToolContext
 import io.legado.app.ai.tool.ToolRegistry
 import com.google.gson.Gson
@@ -42,7 +43,12 @@ class AgentRuntime(
     private val maxRetries: Int = 1,
     private val confirmTimeoutMs: Long = 300_000L,
     /** 开启后模型补全走 SSE 流式，增量文本经 ctx.onPartialText 回流 UI（打字机效果） */
-    private val preferStream: Boolean = false
+    private val preferStream: Boolean = false,
+    /**
+     * 工具调用协议（Operit 式兼容层，见 [io.legado.app.ai.model.AiModelConfig]）：
+     * auto=原生+文本双通道 / native=仅原生 / text=仅文本 XML 协议
+     */
+    private val toolProtocol: String = io.legado.app.ai.model.AiModelConfig.PROTOCOL_AUTO
 ) {
     private val executor = ToolExecutor(registry)
     private val approvals = Channel<Pair<String, Boolean>>(Channel.UNLIMITED)
@@ -117,22 +123,33 @@ class AgentRuntime(
                 return AgentResult("模型调用失败：${e.message}", AgentResultState.ERROR, billed, rounds)
             }
 
-            appendAssistant(messages, completion)
+            // Operit 式兼容层：无原生 tool_calls 时，尝试从回答文本解析 XML 工具协议
+            var calls = completion.toolCalls
+            var answerContent = completion.content
+            if (calls.isNullOrEmpty() && toolProtocol != io.legado.app.ai.model.AiModelConfig.PROTOCOL_NATIVE) {
+                val parsed = TextToolCallParser.parse(answerContent.orEmpty())
+                if (parsed.calls.isNotEmpty()) {
+                    AiLog.i("Agent", "文本协议命中 ${parsed.calls.size} 个工具调用: ${parsed.calls.joinToString { it.name }}")
+                    calls = parsed.calls
+                    answerContent = parsed.strippedContent.ifBlank { null }
+                }
+            }
+
+            appendAssistant(messages, answerContent, calls)
             val increment = completion.usage?.totalTokens?.toLong()
                 ?: (256L + (completion.content?.length ?: 0) / 3L)
             billed += increment
             AiLog.i(
                 "Agent",
-                "第 $rounds 轮返回: content=${completion.content?.length ?: 0}字, toolCalls=${completion.toolCalls?.size ?: 0}, +$increment tokens(累计$billed)"
+                "第 $rounds 轮返回: content=${completion.content?.length ?: 0}字, toolCalls=${calls?.size ?: 0}, +$increment tokens(累计$billed)"
             )
             if (billed > maxTokens) {
                 AiLog.w("Agent", "预算超限截断: $billed > $maxTokens")
-                return AgentResult(completion.content ?: "已达预算上限", AgentResultState.BUDGET_EXCEEDED, billed, rounds)
+                return AgentResult(answerContent ?: "已达预算上限", AgentResultState.BUDGET_EXCEEDED, billed, rounds)
             }
 
-            val calls = completion.toolCalls
             if (calls.isNullOrEmpty()) {
-                return AgentResult(completion.content ?: "无回复", AgentResultState.DONE, billed, rounds)
+                return AgentResult(answerContent ?: "无回复", AgentResultState.DONE, billed, rounds)
             }
 
             // 内层①：整批解析（流水线阶段①），失败项就地回填错误消息
@@ -240,6 +257,12 @@ class AgentRuntime(
      * 流式模式下增量文本实时写入 ctx.onPartialText，轮次结束后清空。
      */
     private suspend fun completeOnce(messages: List<ChatMessage>, ctx: ToolContext): ChatCompletion? {
+        // text 模式不发送原生 tools schema（兼容不支持 tools 参数的服务商）
+        val schema = if (toolProtocol == io.legado.app.ai.model.AiModelConfig.PROTOCOL_TEXT) {
+            null
+        } else {
+            registry.toOpenAiSchema()
+        }
         var attempt = 0
         while (true) {
             if (ctx.stopRequested.value) return null
@@ -247,7 +270,7 @@ class AgentRuntime(
                 if (preferStream && client.supportsStream) {
                     val acc = StringBuilder()
                     val completion = client.completeStreaming(
-                        messages, registry.toOpenAiSchema(),
+                        messages, schema,
                         onDelta = { delta ->
                             acc.append(delta)
                             ctx.onPartialText.value = acc.toString()
@@ -258,7 +281,7 @@ class AgentRuntime(
                     ctx.onPartialText.value = null
                     return completion
                 }
-                return client.complete(messages, registry.toOpenAiSchema(), stream = false)
+                return client.complete(messages, schema, stream = false)
             } catch (e: AgentException) {
                 if (!e.code.retryable || attempt >= maxRetries) throw e
                 attempt++
@@ -267,12 +290,16 @@ class AgentRuntime(
         }
     }
 
-    /** 把 OpenAI 返回的 messages 追加进上下文（含 tool_calls，供模型下一轮续接 tool 结果） */
-    private fun appendAssistant(messages: MutableList<ChatMessage>, c: ChatCompletion) {
+    /** 把模型返回追加进上下文（content + tool_calls，供模型下一轮续接 tool 结果） */
+    private fun appendAssistant(
+        messages: MutableList<ChatMessage>,
+        content: String?,
+        calls: List<ToolCallData>?
+    ) {
         messages += ChatMessage(
             role = "assistant",
-            content = c.content,
-            toolCalls = c.toolCalls?.map { ToolCall(it.id, "function", FunctionCall(it.name, it.arguments)) }
+            content = content,
+            toolCalls = calls?.map { ToolCall(it.id, "function", FunctionCall(it.name, it.arguments)) }
         )
     }
 
