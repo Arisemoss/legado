@@ -1,6 +1,7 @@
 package io.legado.app.ai.model
 
 import com.google.gson.annotations.SerializedName
+import kotlin.jvm.Transient
 
 data class ChatMessage(
     val role: String,        // "system", "user", "assistant", "tool"
@@ -9,7 +10,10 @@ data class ChatMessage(
     val toolCalls: List<ToolCall>? = null,
     @SerializedName("tool_call_id")
     val toolCallId: String? = null,
-    val name: String? = null
+    val name: String? = null,
+    /** 本地时间戳（transient 不参与 Gson 序列化），供 UI 气泡时间戳与历史回放 */
+    @Transient
+    var createdAt: Long = System.currentTimeMillis()
 )
 
 data class ToolCall(
