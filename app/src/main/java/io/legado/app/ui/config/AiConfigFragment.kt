@@ -1,5 +1,6 @@
 package io.legado.app.ui.config
 
+import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.text.InputType
@@ -20,11 +21,14 @@ import io.legado.app.lib.theme.accentColor
 import io.legado.app.ui.widget.prefs.NameListPreference
 import io.legado.app.utils.getPrefString
 import io.legado.app.utils.putPrefString
+import io.legado.app.utils.removePref
+import io.legado.app.utils.toast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 /**
  * AI 配置：服务商预设 / Base URL / API Key（加密）/ 模型 / 流式 / 轮询超时 / 最大轮数 / 会话窗口 / 测试连接
@@ -33,12 +37,17 @@ import kotlinx.coroutines.withContext
 class AiConfigFragment : BasePreferenceFragment(),
     SharedPreferences.OnSharedPreferenceChangeListener {
 
+    companion object {
+        private const val REQ_PICK_CHAT_BG = 42001
+    }
+
     private val scope = CoroutineScope(Dispatchers.Main)
     private var testJob: Job? = null
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         addPreferencesFromResource(R.xml.pref_config_ai)
         addTestConnectionPreference()
+        initChatBackgroundPrefs()
 
         findPreference<NameListPreference>(PreferKey.aiProvider)?.setOnPreferenceChangeListener { _, newValue ->
             applyProviderPreset(newValue as? String)
@@ -50,6 +59,42 @@ class AiConfigFragment : BasePreferenceFragment(),
                 InputType.TYPE_TEXT_VARIATION_PASSWORD or InputType.TYPE_CLASS_TEXT
         }
         upAllSummary()
+    }
+
+    /** 聊天背景自定义：选图（拷贝进私有目录持久化）/ 清除；不透明度与极光开关即时生效 */
+    private fun initChatBackgroundPrefs() {
+        findPreference<Preference>(PreferKey.aiChatBgPath)?.setOnPreferenceClickListener {
+            val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "image/*"
+            }
+            startActivityForResult(
+                Intent.createChooser(intent, "选择聊天背景图"),
+                REQ_PICK_CHAT_BG
+            )
+            true
+        }
+        findPreference<Preference>("ai_chat_bg_clear")?.setOnPreferenceClickListener {
+            File(requireContext().filesDir, "ai_chat_bg.jpg").delete()
+            removePref(PreferKey.aiChatBgPath)
+            toast("已恢复默认背景")
+            true
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQ_PICK_CHAT_BG && resultCode == RESULT_OK) {
+            val uri = data?.data ?: return
+            runCatching {
+                val dst = File(requireContext().filesDir, "ai_chat_bg.jpg")
+                requireContext().contentResolver.openInputStream(uri)?.use { input ->
+                    dst.outputStream().use { output -> input.copyTo(output) }
+                }
+                putPrefString(PreferKey.aiChatBgPath, dst.absolutePath)
+                toast("背景已更新")
+            }.onFailure { toast("设置失败: ${it.localizedMessage}") }
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

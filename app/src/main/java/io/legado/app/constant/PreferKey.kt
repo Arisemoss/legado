@@ -71,4 +71,9 @@ object PreferKey {
     const val aiTimeout = "ai_timeout"
     const val aiMaxRounds = "ai_max_rounds"
     const val aiSessionWindow = "ai_session_window"
+
+    // AI 聊天背景自定义（RikkaHub 风格：图片+不透明度 / 极光渐变）
+    const val aiChatBgPath = "ai_chat_bg_path"
+    const val aiChatBgOpacity = "ai_chat_bg_opacity"
+    const val aiChatBgGradient = "ai_chat_bg_gradient"
 }
