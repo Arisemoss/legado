@@ -66,7 +66,11 @@ class ReadMenu : FrameLayout {
         brightnessBackground.cornerRadius = 5F.dp
         brightnessBackground.setColor(ColorUtils.adjustAlpha(bgColor, 0.5f))
         ll_brightness.background = brightnessBackground
-        ll_bottom_bg.setBackgroundColor(bgColor)
+        // 底部设置栏：RikkaHub 风浮动圆角卡（随阅读主题色自适应）
+        val menuCard = GradientDrawable()
+        menuCard.cornerRadius = 18F.dp
+        menuCard.setColor(bgColor)
+        ll_bottom_bg.background = menuCard
         fabAutoPage.backgroundTintList = bottomBackgroundList
         fabAutoPage.setColorFilter(textColor)
         fabReplaceRule.backgroundTintList = bottomBackgroundList

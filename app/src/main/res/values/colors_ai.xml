@@ -22,4 +22,9 @@
     <color name="ai_input_bg">#FFFFFF</color>
     <color name="ai_input_stroke">#DDE4EF</color>
     <color name="ai_header_bg">#FFFFFF</color>
+    <color name="ai_bubble_user_text">#FFFFFF</color>
+    <color name="ai_send_disabled">#C4CFE2</color>
+    <color name="ai_stop_bg">#E85D5D</color>
+    <color name="ai_menu_card">#F2F5FB</color>
+    <color name="ai_menu_card_stroke">#DCE4F2</color>
 </resources>

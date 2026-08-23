@@ -34,7 +34,8 @@ sealed class ChatRow {
     data class Msg(
         override val key: String,
         val role: String,
-        val content: String
+        val content: String,
+        val time: Long = System.currentTimeMillis()
     ) : ChatRow()
 
     /** 工具调用卡片 */
@@ -226,9 +227,9 @@ class AgentHubViewModel(
         val rows = loaded.mapIndexedNotNull { idx, m ->
             when {
                 m.role == "user" && !m.content.isNullOrBlank() ->
-                    ChatRow.Msg("m$idx", "user", m.content!!)
+                    ChatRow.Msg("m$idx", "user", m.content!!, m.createdAt)
                 m.role == "assistant" && m.toolCalls.isNullOrEmpty() && !m.content.isNullOrBlank() ->
-                    ChatRow.Msg("m$idx", "assistant", m.content!!)
+                    ChatRow.Msg("m$idx", "assistant", m.content!!, m.createdAt)
                 else -> null
             }
         }

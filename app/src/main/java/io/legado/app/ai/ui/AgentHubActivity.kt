@@ -2,6 +2,8 @@ package io.legado.app.ai.ui
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.os.Bundle
 import android.view.View
@@ -20,11 +22,16 @@ import io.legado.app.ai.tool.AiPreset
 import io.legado.app.base.adapter.CommonRecyclerAdapter
 import io.legado.app.base.adapter.ItemViewHolder
 import io.legado.app.base.adapter.ItemViewDelegate
+import io.legado.app.constant.PreferKey
+import io.legado.app.help.AppConfig
 import io.legado.app.ui.book.read.ReadBookActivity
 import io.legado.app.ui.book.search.SearchActivity
 import io.legado.app.ui.config.ConfigActivity
 import io.legado.app.ui.config.ConfigViewModel
 import io.legado.app.ui.main.MainActivity
+import io.legado.app.utils.getPrefBoolean
+import io.legado.app.utils.getPrefInt
+import io.legado.app.utils.getPrefString
 import kotlinx.android.synthetic.main.activity_agent_hub.*
 import kotlinx.android.synthetic.main.ai_item_confirm.view.*
 import kotlinx.android.synthetic.main.ai_item_error.view.*
@@ -37,6 +44,10 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.jetbrains.anko.sdk27.listeners.onClick
 import org.jetbrains.anko.startActivity
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * AI Agent Hub 中心页：气泡对话 + 实时工具卡片 + 写操作内联二次确认 +
@@ -62,6 +73,13 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
     private lateinit var vm: AgentHubViewModel
     private val uiJobs = ArrayList<Job>()
 
+    /** 气泡时间戳格式（RikkaHub 元数据行风格） */
+    private val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
+
+    /** 聊天背景当前生效路径（变化时才重新解码，避免 onResume 重复加载） */
+    private var lastBgPath: String? = null
+    private var typingTick = 0
+
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         vm = AgentHubViewModel(readPreset())
         adapter = ChatAdapter(this)
@@ -74,6 +92,51 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
         super.onResume()
         // 配置可能在设置页被修改，回来时热更新并刷新状态栏
         vm.refreshStatusLine()
+        // 聊天背景可能在配置页被更改
+        applyChatBackground()
+    }
+
+    /**
+     * 应用聊天背景（RikkaHub AssistantBackground 移植）：
+     * 极光渐变 > 自定义图片(不透明度+渐变遮罩) > 默认纯色。
+     */
+    private fun applyChatBackground() {
+        val gradient = getPrefBoolean(PreferKey.aiChatBgGradient, false)
+        if (gradient) {
+            aurora_view.setDarkMode(AppConfig.isNightTheme)
+            aurora_view.visibility = View.VISIBLE
+            iv_chat_bg.visibility = View.GONE
+            view_scrim.visibility = View.GONE
+            return
+        }
+        aurora_view.visibility = View.GONE
+        val path = getPrefString(PreferKey.aiChatBgPath)
+        if (!path.isNullOrBlank() && File(path).exists()) {
+            if (path != lastBgPath) {
+                lastBgPath = path
+                runCatching {
+                    iv_chat_bg.setImageBitmap(decodeSampled(File(path)))
+                }
+            }
+            iv_chat_bg.alpha = getPrefInt(PreferKey.aiChatBgOpacity, 60).coerceIn(10, 100) / 100f
+            iv_chat_bg.visibility = View.VISIBLE
+            view_scrim.visibility = View.VISIBLE
+        } else {
+            iv_chat_bg.visibility = View.GONE
+            view_scrim.visibility = View.GONE
+        }
+    }
+
+    /** 按屏幕尺寸采样解码，避免整图加载 OOM */
+    private fun decodeSampled(f: File): Bitmap {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(f.absolutePath, bounds)
+        var sample = 1
+        while (bounds.outHeight / (sample * 2) >= 1920 || bounds.outWidth / (sample * 2) >= 1080) {
+            sample *= 2
+        }
+        val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+        return BitmapFactory.decodeFile(f.absolutePath, opts)
     }
 
     override fun onDestroy() {
@@ -154,9 +217,15 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
                 val busyNow = vm.busy.value
                 chips_scroll.visibility =
                     if (!busyNow || isEmpty) View.VISIBLE else View.GONE
-                // 首个 token 到达前显示"思考中"，出字后由打字机气泡接管
-                typing_bar.visibility =
-                    if (vm.typing.value && partial == null) View.VISIBLE else View.GONE
+                // 首个 token 到达前显示"思考中"，出字后由打字机气泡接管；
+                // 省略号逐帧推进（RikkaHub 思考指示风格）
+                if (vm.typing.value && partial == null) {
+                    typingTick++
+                    tv_typing.text = "思考中" + "·".repeat(typingTick % 4)
+                    typing_bar.visibility = View.VISIBLE
+                } else {
+                    typing_bar.visibility = View.GONE
+                }
                 if (busyNow != lastBusy) {
                     btn_send.visibility = if (busyNow) View.GONE else View.VISIBLE
                     btn_stop.visibility = if (busyNow) View.VISIBLE else View.GONE
@@ -312,7 +381,9 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
                 VT_USER,
                 object : ItemViewDelegate<ChatRow>(context, R.layout.ai_item_msg_user) {
                     override fun convert(holder: ItemViewHolder, item: ChatRow, payloads: MutableList<Any>) {
-                        holder.itemView.tv_user_text.text = (item as ChatRow.Msg).content
+                        val msg = item as ChatRow.Msg
+                        holder.itemView.tv_user_text.text = msg.content
+                        holder.itemView.tv_user_time.text = timeFmt.format(Date(msg.time))
                     }
 
                     override fun registerListener(holder: ItemViewHolder) {}
@@ -321,7 +392,9 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
                 VT_AI,
                 object : ItemViewDelegate<ChatRow>(context, R.layout.ai_item_msg_ai) {
                     override fun convert(holder: ItemViewHolder, item: ChatRow, payloads: MutableList<Any>) {
-                        holder.itemView.tv_ai_text.text = (item as ChatRow.Msg).content
+                        val msg = item as ChatRow.Msg
+                        holder.itemView.tv_ai_text.text = msg.content
+                        holder.itemView.tv_ai_time.text = timeFmt.format(Date(msg.time))
                     }
 
                     override fun registerListener(holder: ItemViewHolder) {}
