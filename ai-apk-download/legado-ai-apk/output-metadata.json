@@ -11,10 +11,10 @@
       "type": "SINGLE",
       "filters": [],
       "properties": [],
-      "versionCode": 5737,
-      "versionName": "3.26.082020-ai-v2",
+      "versionCode": 5757,
+      "versionName": "3.26.082315-ai-v2",
       "enabled": true,
-      "outputFile": "legado_ai_3.26.082020-ai-v2.apk"
+      "outputFile": "legado_ai_3.26.082315-ai-v2.apk"
     }
   ]
 }
