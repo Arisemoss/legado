@@ -5,6 +5,7 @@ import io.legado.app.ai.bridge.DefaultAppController
 import io.legado.app.ai.bridge.DefaultBookFetcher
 import io.legado.app.ai.bridge.DefaultBookSourceAnalyzer
 import io.legado.app.ai.bridge.DefaultChapterReader
+import io.legado.app.ai.log.AiLog
 import io.legado.app.ai.model.AiModelConfig
 import io.legado.app.ai.runtime.AgentRuntime
 import io.legado.app.ai.runtime.OpenAIClient
@@ -53,8 +54,13 @@ object AiPlatform {
     fun syncConfig() {
         synchronized(lock) {
             // 防御：历史坏数据(如键类型冲突)不应导致宿主页面崩溃，保持旧配置继续可用
-            val cfg = runCatching { ModelManager.getConfig() }.getOrElse { lastConfig }
-                ?: return
+            val cfg = runCatching { ModelManager.getConfig() }
+                .onFailure { AiLog.e("Config", "读取配置失败，沿用旧配置", it) }
+                .getOrElse { lastConfig }
+                ?: run {
+                    AiLog.i("Config", "无可用配置（未配置模型），跳过运行时重建")
+                    return
+                }
             if (initialized && cfg == lastConfig) return
             val client = OpenAIClient(
                 baseUrl = cfg.baseUrl,
@@ -72,6 +78,10 @@ object AiPlatform {
             )
             lastConfig = cfg
             initialized = true
+            AiLog.i(
+                "Config",
+                "运行时已重建: model=${cfg.name}, baseUrl=${cfg.baseUrl}, stream=${cfg.stream}, maxRounds=${cfg.maxRounds}, key=${AiLog.mask(cfg.apiKey)}"
+            )
         }
     }
 }

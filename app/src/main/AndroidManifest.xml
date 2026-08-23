@@ -147,6 +147,8 @@
         <activity
             android:name=".ai.ui.AgentHubActivity"
             android:windowSoftInputMode="adjustResize" />
+        <!-- AI 运行日志 -->
+        <activity android:name=".ai.ui.AiLogActivity" />
         <!-- 阅读界面 -->
         <activity
             android:name=".ui.book.read.ReadBookActivity"

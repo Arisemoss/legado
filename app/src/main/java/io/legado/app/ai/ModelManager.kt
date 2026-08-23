@@ -3,6 +3,7 @@ package io.legado.app.ai
 import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
+import io.legado.app.ai.log.AiLog
 import io.legado.app.ai.model.*
 import io.legado.app.ai.runtime.AiKeyStore
 import io.legado.app.constant.PreferKey
@@ -78,6 +79,10 @@ object ModelManager {
         prefs.putPrefString(PreferKey.aiBaseUrl, config.baseUrl)
         AiKeyStore.putApiKey(config.apiKey)
         prefs.putPrefString(PreferKey.aiModel, config.name)
+        io.legado.app.ai.log.AiLog.i(
+            "Config",
+            "保存配置: model=${config.name}, baseUrl=${config.baseUrl}, key=${io.legado.app.ai.log.AiLog.mask(config.apiKey)}"
+        )
     }
 
     /**

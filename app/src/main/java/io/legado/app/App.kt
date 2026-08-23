@@ -18,6 +18,7 @@ import io.legado.app.constant.EventBus
 import io.legado.app.constant.PreferKey
 import io.legado.app.data.AppDatabase
 import io.legado.app.ai.AiPlatform
+import io.legado.app.ai.log.AiLog
 import io.legado.app.help.ActivityHelp
 import io.legado.app.help.AppConfig
 import io.legado.app.help.CrashHandler
@@ -62,6 +63,8 @@ class App : MultiDexApplication() {
             .autoClear(false)
 
         registerActivityLifecycleCallbacks(ActivityHelp)
+        // 初始化 AI 日志（内存缓冲 + 文件持久化，Hub 顶栏 🐛 查看）
+        AiLog.attach(this)
         // 初始化 AI 平台（Hub 运行时装配：client/bridge/registry/runtime）
         AiPlatform.init()
     }

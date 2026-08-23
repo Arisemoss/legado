@@ -6,6 +6,7 @@ import android.security.keystore.KeyProperties
 import android.util.Base64
 import android.util.Log
 import io.legado.app.App
+import io.legado.app.ai.log.AiLog
 import io.legado.app.constant.PreferKey
 import io.legado.app.utils.getPrefString
 import io.legado.app.utils.putPrefString
@@ -33,7 +34,7 @@ object AiKeyStore {
         App.INSTANCE.getPrefString(ENC_KEY)?.let { enc ->
             decrypt(enc)?.let { return it }
             // 解密失败，回退明本（可能为不可用主密钥遗留数据）
-            Log.w(TAG, "解密 ai_api_key 失败，回退明文")
+            AiLog.w("KeyStore", "解密 ai_api_key 失败，回退明文")
         }
         return App.INSTANCE.getPrefString(PreferKey.aiApiKey) ?: ""
     }
@@ -49,7 +50,7 @@ object AiKeyStore {
             ctx.putPrefString(ENC_KEY, enc)
             ctx.putPrefString(PreferKey.aiApiKey, "") // 已迁移，清掉明本
         } ?: run {
-            Log.w(TAG, "主密钥不可用，ai_api_key 以明文存储")
+            AiLog.w("KeyStore", "主密钥不可用，ai_api_key 以明文存储")
             ctx.putPrefString(ENC_KEY, "")
             ctx.putPrefString(PreferKey.aiApiKey, value)
         }

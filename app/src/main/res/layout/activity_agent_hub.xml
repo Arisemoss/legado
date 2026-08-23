@@ -68,6 +68,15 @@
             android:tint="@color/ai_accent" />
 
         <ImageView
+            android:id="@+id/btn_logs"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:contentDescription="运行日志"
+            android:padding="8dp"
+            android:src="@drawable/ic_bug_report"
+            android:tint="@color/ai_accent" />
+
+        <ImageView
             android:id="@+id/btn_config"
             android:layout_width="38dp"
             android:layout_height="38dp"

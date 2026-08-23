@@ -8,6 +8,7 @@ import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import io.legado.app.R
 import io.legado.app.ai.ModelManager
+import io.legado.app.ai.log.AiLog
 import io.legado.app.ai.model.AiModelConfig
 import io.legado.app.ai.model.AiProviderPresets
 import io.legado.app.ai.model.ChatCompletionRequest
@@ -107,9 +108,15 @@ class AiConfigFragment : BasePreferenceFragment(),
             preference.summary = result.fold(
                 onSuccess = { resp ->
                     val text = resp?.choices?.firstOrNull()?.message?.content.orEmpty().take(30)
+                    io.legado.app.ai.log.AiLog.i(
+                        "Test", "连接成功 ${elapsed}s model=${cfg.name} 回复=${text.ifBlank { "(空)" }}"
+                    )
                     "✓ 连接成功（${elapsed}s）${if (text.isNotBlank()) " 回复：$text" else ""}"
                 },
-                onFailure = { "✗ 连接失败：${it.localizedMessage?.take(120)}" }
+                onFailure = {
+                    io.legado.app.ai.log.AiLog.e("Test", "连接失败 model=${cfg.name} baseUrl=${cfg.baseUrl}", it)
+                    "✗ 连接失败：${it.localizedMessage?.take(120)}"
+                }
             )
         }
     }
