@@ -1,5 +1,6 @@
 package io.legado.app.ui.config
 
+import android.app.Activity
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
@@ -63,7 +64,9 @@ class AiConfigFragment : BasePreferenceFragment(),
 
     /** 聊天背景自定义：选图（拷贝进私有目录持久化）/ 清除；不透明度与极光开关即时生效 */
     private fun initChatBackgroundPrefs() {
-        findPreference<Preference>(PreferKey.aiChatBgPath)?.setOnPreferenceClickListener {
+        // 注意：这里查找的是「选图动作项」的 key（ai_chat_bg_pick），
+        // 而非存储路径用的 PreferKey.aiChatBgPath（ai_chat_bg_path）
+        findPreference<Preference>("ai_chat_bg_pick")?.setOnPreferenceClickListener {
             val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
                 type = "image/*"
@@ -84,7 +87,7 @@ class AiConfigFragment : BasePreferenceFragment(),
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == REQ_PICK_CHAT_BG && resultCode == RESULT_OK) {
+        if (requestCode == REQ_PICK_CHAT_BG && resultCode == Activity.RESULT_OK) {
             val uri = data?.data ?: return
             runCatching {
                 val dst = File(requireContext().filesDir, "ai_chat_bg.jpg")
