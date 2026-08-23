@@ -107,21 +107,6 @@ class AgentHubViewModel(
 
         vmJobs += scope.launch {
             while (isActive) {
-                val list = runCatching { App.db.aiSessionDao().getAll() }.getOrNull()
-                if (list != null) {
-                    sessions.value = list
-                    // 同步当前会话标题（列表晚于 loadInto 到达时）
-                    currentTitle = list.find { it.id == sessionId.value }?.title ?: currentTitle
-                    if (sessionId.value !in list.map { it.id } && sessionId.value != -1L) {
-                        // 当前会话被删除：自动落到最新会话或新建
-                        switchTo(list.firstOrNull()?.id ?: -2L)
-                    }
-                }
-                kotlinx.coroutines.delay(1000)
-            }
-        }
-        vmJobs += scope.launch {
-            while (isActive) {
                 val ev = ctx.onToolEvent.value
                 if (ev == null) {
                     kotlinx.coroutines.delay(80)
@@ -143,24 +128,38 @@ class AgentHubViewModel(
         }
     }
 
+    /** 当前流式输出的累积文本；null 表示没有进行中的打字机气泡 */
+    fun currentPartial(): String? =
+        if (this::ctx.isInitialized && busy.value) {
+            ctx.onPartialText.value?.takeIf { it.isNotBlank() }
+        } else null
+
     fun dispose() {
         vmJobs.forEach { it.cancel() }
         vmJobs.clear()
         runJob?.cancel()
         if (this::ctx.isInitialized) {
             ctx.stopRequested.value = true
+            ctx.onPartialText.value = null
         }
     }
 
     /** 初始化：优先续接最近会话（实现跨次打开的连续对话），否则新建 */
     suspend fun init() {
         refreshStatusLine()
+        refreshSessions()
         val latest = runCatching {
             App.db.aiSessionDao().getAll()
         }.getOrNull() ?: emptyList()
 
         val target = latest.firstOrNull()?.id ?: conversation.create()
         loadInto(target)
+        refreshSessions()
+    }
+
+    /** 拉取会话列表（事件驱动：在会话增删/切换/回答完成后调用，替代高频轮询） */
+    suspend fun refreshSessions() {
+        runCatching { App.db.aiSessionDao().getAll() }.getOrNull()?.let { sessions.value = it }
     }
 
     // ---------- 会话管理 ----------
@@ -168,6 +167,7 @@ class AgentHubViewModel(
     suspend fun newSession() {
         ensureIdle()
         loadInto(conversation.create(title = "新会话"))
+        refreshSessions()
     }
 
     suspend fun switchTo(id: Long) {
@@ -177,6 +177,7 @@ class AgentHubViewModel(
         }
         ensureIdle()
         loadInto(id)
+        refreshSessions()
     }
 
     suspend fun deleteSession(id: Long) {
@@ -186,11 +187,13 @@ class AgentHubViewModel(
                 ?: conversation.create()
             loadInto(next)
         }
+        refreshSessions()
     }
 
     suspend fun clearCurrentMessages() {
         conversation.delete(sessionId.value)
         loadInto(conversation.create(title = currentTitle))
+        refreshSessions()
     }
 
     private suspend fun loadInto(sid: Long) {
@@ -199,6 +202,7 @@ class AgentHubViewModel(
         ctx.stopRequested.value = false
         ctx.onConfirmRequested.value = null
         ctx.onToolEvent.value = null
+        ctx.onPartialText.value = null
         pendingConfirmToken = null
         currentTitle = sessions.value.find { it.id == sid }?.title ?: "新会话"
 
@@ -237,6 +241,7 @@ class AgentHubViewModel(
         val sid = sessionId.value
         if (sid <= 0) return
         ctx.stopRequested.value = false
+        if (this::ctx.isInitialized) ctx.onPartialText.value = null // 清残留打字机气泡
         appendRow(ChatRow.Msg(nextKey(), "user", text))
         typing.value = true
         busy.value = true
@@ -256,7 +261,9 @@ class AgentHubViewModel(
 
             typing.value = false
             busy.value = false
+            ctx.onPartialText.value = null
             appendAssistantResult(sid, text, result)
+            refreshSessions()
             // 清空桥接层遗留的确认源
             ctx.onConfirmRequested.value = null
             pendingConfirmToken = null
@@ -327,7 +334,10 @@ class AgentHubViewModel(
     private fun maybeRename(sid: Long, text: String) {
         if (currentTitle != "新会话") return
         currentTitle = text.take(16)
-        scope?.launch { runCatching { conversation.rename(sid, currentTitle) } }
+        scope?.launch {
+            runCatching { conversation.rename(sid, currentTitle) }
+            refreshSessions()
+        }
     }
 
     private fun nextKey(): String = "r${rowSeq++}"

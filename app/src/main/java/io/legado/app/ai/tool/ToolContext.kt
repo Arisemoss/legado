@@ -25,7 +25,9 @@ class ToolContext(
     val preset: AiPreset = AiPreset(),
     val onConfirmRequested: MutableStateFlow<ConfirmRequest?> = MutableStateFlow(null),
     val onNavigate: MutableStateFlow<io.legado.app.ai.bridge.AppNav?> = MutableStateFlow(null),
-    val onToolEvent: MutableStateFlow<ToolEvent?> = MutableStateFlow(null)
+    val onToolEvent: MutableStateFlow<ToolEvent?> = MutableStateFlow(null),
+    /** 流式输出的累积增量文本；null 表示当前没有进行中的流式回答 */
+    val onPartialText: MutableStateFlow<String?> = MutableStateFlow(null)
 ) {
     val stopRequested = MutableStateFlow(false)
 

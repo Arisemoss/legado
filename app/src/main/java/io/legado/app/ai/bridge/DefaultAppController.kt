@@ -14,10 +14,14 @@ class DefaultAppController : AppController {
     override suspend fun listShelf(keyword: String?): List<Map<String, Any>> =
         withContext(Dispatchers.IO) {
             val dao = App.db.bookDao()
+            // 注意：不能用 LiveData.value（无活跃观察者时恒为 null），这里取全量后内存过滤
             val books = if (keyword.isNullOrBlank()) {
                 dao.all
             } else {
-                dao.liveDataSearch(keyword).value.orEmpty()
+                dao.all.filter { b ->
+                    b.name.contains(keyword, ignoreCase = true) ||
+                        (b.author ?: "").contains(keyword, ignoreCase = true)
+                }
             }
             books.map {
                 mapOf(
@@ -83,9 +87,12 @@ class DefaultAppController : AppController {
 
     override suspend fun setSetting(key: String, value: String): Map<String, Any> =
         withContext(Dispatchers.IO) {
+            // 布尔值兜底解析：接受 "true"/"True"/"1"
+            fun parseBool(): Boolean =
+                value.trim().equals("true", ignoreCase = true) || value.trim() == "1"
             when (key) {
                 "nightTheme" -> {
-                    AppConfig.isNightTheme = value.toBoolean()
+                    AppConfig.isNightTheme = parseBool()
                     mapOf("ok" to true, "key" to key, "value" to value)
                 }
                 "threadCount" -> {
@@ -98,7 +105,7 @@ class DefaultAppController : AppController {
                     }
                 }
                 "$PreferKey.showRss" -> {
-                    AppConfig.isShowRSS = value.toBoolean()
+                    AppConfig.isShowRSS = parseBool()
                     mapOf("ok" to true, "key" to key, "value" to value)
                 }
                 else -> mapOf("ok" to false, "message" to "不支持的设置项: $key")
