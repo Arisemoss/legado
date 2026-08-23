@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import io.legado.app.ai.model.*
 import io.legado.app.ai.runtime.AiKeyStore
 import io.legado.app.constant.PreferKey
+import io.legado.app.utils.getPrefBoolean
 import io.legado.app.utils.getPrefString
 import io.legado.app.utils.putPrefString
 import okhttp3.MediaType
@@ -37,7 +38,7 @@ object ModelManager {
             name = model,
             baseUrl = baseUrl,
             apiKey = AiKeyStore.getApiKey(),
-            stream = prefs.getPrefString(PreferKey.aiStream) == "true",
+            stream = prefs.getPrefBoolean(PreferKey.aiStream),
             timeoutMillis = prefs.getPrefString(PreferKey.aiTimeout)?.toLongOrNull() ?: 120_000L,
             maxRounds = prefs.getPrefString(PreferKey.aiMaxRounds)?.toIntOrNull() ?: 5,
             sessionWindow = prefs.getPrefString(PreferKey.aiSessionWindow)?.toIntOrNull() ?: 50
