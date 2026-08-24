@@ -32,11 +32,21 @@ object AiKeyStore {
 
     fun getApiKey(): String {
         App.INSTANCE.getPrefString(ENC_KEY)?.let { enc ->
-            decrypt(enc)?.let { return it }
-            // 解密失败，回退明本（可能为不可用主密钥遗留数据）
-            AiLog.w("KeyStore", "解密 ai_api_key 失败，回退明文")
+            if (enc.isNotBlank()) {
+                decrypt(enc)?.let { return it }
+                // 解密失败，回退明本（可能为不可用主密钥遗留数据）
+                AiLog.w("KeyStore", "解密 ai_api_key 失败，回退明文")
+            }
         }
-        return App.INSTANCE.getPrefString(PreferKey.aiApiKey) ?: ""
+        // 无密文：读明文；明文有效则顺手迁移加密（自愈历史数据，如设置页直写或旧版本遗留）
+        val plain = App.INSTANCE.getPrefString(PreferKey.aiApiKey).orEmpty()
+        if (plain.isBlank()) return ""
+        encrypt(plain)?.let { enc ->
+            App.INSTANCE.putPrefString(ENC_KEY, enc)
+            App.INSTANCE.putPrefString(PreferKey.aiApiKey, "")
+            AiLog.i("KeyStore", "已将明文 API Key 迁移至加密存储")
+        }
+        return plain
     }
 
     fun putApiKey(value: String) {

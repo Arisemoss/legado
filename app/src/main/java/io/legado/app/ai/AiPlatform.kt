@@ -5,6 +5,7 @@ import io.legado.app.ai.bridge.DefaultAppController
 import io.legado.app.ai.bridge.DefaultBookFetcher
 import io.legado.app.ai.bridge.DefaultBookSourceAnalyzer
 import io.legado.app.ai.bridge.DefaultChapterReader
+import io.legado.app.ai.bridge.DefaultSourceRuleWriter
 import io.legado.app.ai.log.AiLog
 import io.legado.app.ai.model.AiModelConfig
 import io.legado.app.ai.runtime.AgentRuntime
@@ -49,7 +50,8 @@ object AiPlatform {
             bookFetcher = DefaultBookFetcher(),
             chapterReader = DefaultChapterReader(),
             sourceAnalyzer = DefaultBookSourceAnalyzer(),
-            appController = DefaultAppController()
+            appController = DefaultAppController(),
+            sourceRuleWriter = DefaultSourceRuleWriter()
         )
         registry = buildRegistry(bridge)
         syncConfig()

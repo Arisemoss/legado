@@ -8,8 +8,9 @@ import io.legado.app.data.entities.AiMessage
 
 @Dao
 interface AiMessageDao {
-    @Query("SELECT * FROM aiMessages WHERE sessionId=:sid ORDER BY seq ASC LIMIT :limit OFFSET :offset")
-    suspend fun window(sid: Long, limit: Int, offset: Int): List<AiMessage>
+    /** 取最新 [limit] 条（seq 倒序），调用方需自行反转恢复时序 */
+    @Query("SELECT * FROM aiMessages WHERE sessionId=:sid ORDER BY seq DESC LIMIT :limit")
+    suspend fun windowLatest(sid: Long, limit: Int): List<AiMessage>
 
     @Query("SELECT * FROM aiMessages WHERE sessionId=:sid ORDER BY seq ASC")
     suspend fun all(sid: Long): List<AiMessage>

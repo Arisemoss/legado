@@ -35,9 +35,9 @@ class ConversationService(
         sessionDao.get(id)?.let { sessionDao.update(it.copy(archived = true)) }
     }
 
-    /** 载入尾部 [window] 条消息，供 Agent 作为 history 上下文 */
+    /** 载入尾部 [window] 条消息（按 seq 升序返回），供 Agent 作为 history 上下文 */
     suspend fun loadChat(sid: Long): List<ChatMessage> =
-        messageDao.window(sid, window, 0).map { toChat(it) }
+        messageDao.windowLatest(sid, window).reversed().map { toChat(it) }
 
     suspend fun loadAll(sid: Long): List<AiMessage> = messageDao.all(sid)
 
