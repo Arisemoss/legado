@@ -36,6 +36,7 @@ import kotlinx.android.synthetic.main.ai_item_confirm.view.*
 import kotlinx.android.synthetic.main.ai_item_error.view.*
 import kotlinx.android.synthetic.main.ai_item_msg_ai.view.*
 import kotlinx.android.synthetic.main.ai_item_msg_user.view.*
+import kotlinx.android.synthetic.main.ai_item_process.view.*
 import kotlinx.android.synthetic.main.ai_item_session.view.*
 import kotlinx.android.synthetic.main.ai_item_tool.view.*
 import kotlinx.coroutines.Job
