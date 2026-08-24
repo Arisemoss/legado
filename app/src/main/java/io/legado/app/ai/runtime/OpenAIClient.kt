@@ -5,6 +5,7 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.legado.app.ai.model.AgentErrorCode
 import io.legado.app.ai.model.ChatMessage
+import io.legado.app.ai.model.ToolCall
 import io.legado.app.ai.model.Usage
 import io.legado.app.ai.log.AiLog
 import kotlinx.coroutines.Dispatchers
