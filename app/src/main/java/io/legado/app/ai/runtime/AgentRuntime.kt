@@ -300,13 +300,9 @@ class AgentRuntime(
         )
     }
 
-    private suspend fun awaitApproval(ctx: ToolContext, token: String): Boolean {
-        while (true) {
-            if (ctx.stopRequested.value) return false
-            // 广播总线上按 token 过滤；超时/停止均按拒绝处理
-            return ApprovalBus.await(token, confirmTimeoutMs)?.second ?: false
-        }
-    }
+    private suspend fun awaitApproval(ctx: ToolContext, token: String): Boolean =
+        // 共享总线上按 token 过滤；超时/停止均按拒绝处理
+        ApprovalBus.await(token, confirmTimeoutMs) { ctx.stopRequested.value }?.second ?: false
 
     private fun lastAnswer(messages: List<ChatMessage>): String {
         for (i in messages.indices.reversed()) {
