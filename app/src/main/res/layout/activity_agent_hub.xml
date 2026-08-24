@@ -90,7 +90,7 @@
             android:layout_marginStart="4dp"
             android:contentDescription="新建会话"
             android:padding="8dp"
-            android:src="@drawable/ic_add"
+            android:src="@drawable/ic_ai_new_chat"
             android:tint="@color/ai_accent" />
 
         <ImageView
@@ -135,15 +135,12 @@
         android:padding="32dp"
         android:visibility="gone">
 
-        <TextView
-            android:layout_width="64dp"
-            android:layout_height="64dp"
-            android:background="@drawable/ai_bg_avatar_ai"
-            android:gravity="center"
-            android:text="AI"
-            android:textColor="#FFFFFF"
-            android:textSize="24sp"
-            android:textStyle="bold" />
+        <ImageView
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_ai_empty_book"
+            android:tint="@color/ai_accent" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -291,8 +288,7 @@
                 android:layout_height="20dp"
                 android:layout_gravity="center"
                 android:contentDescription="发送"
-                android:rotation="135"
-                android:src="@drawable/ic_arrow_back"
+                android:src="@drawable/ic_ai_send_arrow"
                 android:tint="#FFFFFF" />
         </FrameLayout>
     </LinearLayout>

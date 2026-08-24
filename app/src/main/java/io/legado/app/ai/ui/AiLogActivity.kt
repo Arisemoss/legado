@@ -33,10 +33,6 @@ class AiLogActivity : BaseActivity(R.layout.activity_ai_log) {
         /** 渲染上限，避免 TextView 过大卡顿；完整内容走「分享」 */
         private const val MAX_RENDER_LINES = 500
 
-        private val COLOR_DEBUG = Color.parseColor("#8A94A6")
-        private val COLOR_INFO = Color.parseColor("#1F2430")
-        private val COLOR_WARN = Color.parseColor("#E08E00")
-        private val COLOR_ERROR = Color.parseColor("#C0392B")
     }
 
     private val jobs = ArrayList<Job>()
@@ -97,10 +93,10 @@ class AiLogActivity : BaseActivity(R.layout.activity_ai_log) {
         }
         for (e in shown) {
             val color = when (e.level) {
-                AiLog.L_D -> COLOR_DEBUG
-                AiLog.L_W -> COLOR_WARN
-                AiLog.L_E -> COLOR_ERROR
-                else -> COLOR_INFO
+                AiLog.L_D -> getColorCompat(R.color.ai_text_sub)
+                AiLog.L_W -> getColorCompat(R.color.ai_warn_text)
+                AiLog.L_E -> getColorCompat(R.color.ai_error_text)
+                else -> getColorCompat(R.color.ai_text_main)
             }
             val line = "${fmt.format(Date(e.time))} ${e.level}/${e.tag}: ${e.message}\n"
             val start = sb.length
@@ -141,4 +137,7 @@ class AiLogActivity : BaseActivity(R.layout.activity_ai_log) {
     private fun toast(msg: String) {
         android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_SHORT).show()
     }
+
+    private fun Context.getColorCompat(res: Int): Int =
+        androidx.core.content.ContextCompat.getColor(this, res)
 }
