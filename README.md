@@ -30,6 +30,10 @@
   连不支持函数调用的服务商和本地小模型也能用工具
 - 📋 **应用内运行日志**：模型请求 / 流式 / 工具 / 错误全链路记录，一键导出排障
 - 🎨 **RikkaHub 风格 UI**：尾角气泡、时间戳、胶囊输入栏、聊天背景自定义（相册图片 / 极光渐变）
+- 📖 **现代阅读主题**：内置五套 MIT 开源配色系统（[Flexoki](https://stephango.com/flexoki) /
+  [Everforest](https://github.com/sainnhe/everforest) / [Rosé Pine](https://rosepinetheme.com) /
+  [Nord](https://www.nordtheme.com) / [Catppuccin](https://catppuccin.com)），
+  日/夜双模式，全部通过 WCAG AA 对比度，阅读→界面 一键切换
 
 ## 🤖 AI 能力一览
 
