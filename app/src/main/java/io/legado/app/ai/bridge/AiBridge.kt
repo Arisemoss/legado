@@ -8,5 +8,6 @@ class AiBridge(
     val bookFetcher: BookFetcher,
     val chapterReader: ChapterReader,
     val sourceAnalyzer: BookSourceAnalyzer,
-    val appController: AppController
+    val appController: AppController,
+    val sourceRuleWriter: SourceRuleWriter
 )

@@ -11,6 +11,7 @@ import androidx.preference.Preference
 import io.legado.app.R
 import io.legado.app.ai.ModelManager
 import io.legado.app.ai.log.AiLog
+import io.legado.app.ai.runtime.AiKeyStore
 import io.legado.app.ai.model.AiModelConfig
 import io.legado.app.ai.model.AiProviderPresets
 import io.legado.app.ai.model.ChatCompletionRequest
@@ -54,10 +55,20 @@ class AiConfigFragment : BasePreferenceFragment(),
             applyProviderPreset(newValue as? String)
             true
         }
-        findPreference<EditTextPreference>(PreferKey.aiApiKey)?.setOnBindEditTextListener { editText ->
-            ATH.setTint(editText, requireContext().accentColor)
-            editText.inputType =
-                InputType.TYPE_TEXT_VARIATION_PASSWORD or InputType.TYPE_CLASS_TEXT
+        findPreference<EditTextPreference>(PreferKey.aiApiKey)?.let { pref ->
+            pref.setOnBindEditTextListener { editText ->
+                ATH.setTint(editText, requireContext().accentColor)
+                editText.inputType =
+                    InputType.TYPE_TEXT_VARIATION_PASSWORD or InputType.TYPE_CLASS_TEXT
+                // 编辑框回显现值（密文解出），避免用户以为 Key 丢失
+                editText.setText(AiKeyStore.getApiKey())
+            }
+            // 拦截明文落盘：写入即走 Keystore 加密，pref 不留明文（返回 false 阻止默认持久化）
+            pref.setOnPreferenceChangeListener { _, newValue ->
+                AiKeyStore.putApiKey(newValue as? String ?: "")
+                upAllSummary()
+                false
+            }
         }
         upAllSummary()
     }
@@ -129,7 +140,7 @@ class AiConfigFragment : BasePreferenceFragment(),
         val cfg = AiModelConfig(
             name = getPrefString(PreferKey.aiModel) ?: "gpt-4o-mini",
             baseUrl = getPrefString(PreferKey.aiBaseUrl) ?: "https://api.openai.com/v1",
-            apiKey = getPrefString(PreferKey.aiApiKey) ?: "",
+            apiKey = AiKeyStore.getApiKey(),
             timeoutMillis = 20_000L
         )
         if (cfg.apiKey.isBlank()) {
@@ -198,8 +209,12 @@ class AiConfigFragment : BasePreferenceFragment(),
         upSummary(PreferKey.aiMaxRounds)
         upSummary(PreferKey.aiSessionWindow)
         findPreference<EditTextPreference>(PreferKey.aiApiKey)?.let {
-            val key = getPrefString(PreferKey.aiApiKey)
-            it.summary = if (key.isNullOrEmpty()) "未设置" else "*".repeat(key.length.coerceAtMost(12))
+            val key = AiKeyStore.getApiKey()
+            it.summary = when {
+                key.isEmpty() -> "未设置"
+                getPrefString(PreferKey.aiApiKey).isNullOrEmpty() -> "已设置（Keystore 加密存储）· ${"*".repeat(key.length.coerceAtMost(12))}"
+                else -> "⚠️ 明文待迁移 · ${"*".repeat(key.length.coerceAtMost(12))}"
+            }
         }
         // 服务商 summary 追加说明
         val providerId = getPrefString(PreferKey.aiProvider)
