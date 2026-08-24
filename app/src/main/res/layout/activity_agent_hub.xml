@@ -31,11 +31,14 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-    <!-- 顶栏 -->
+    <!-- 顶栏：毛玻璃浮卡（极光/自定义背景可透出，日/夜自适应渐变描边） -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/ai_header_bg"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginEnd="10dp"
+        android:background="@drawable/ai_bg_header_glass"
         android:elevation="2dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"

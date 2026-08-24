@@ -119,7 +119,8 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
             if (path != lastBgPath) {
                 lastBgPath = path
                 runCatching {
-                    iv_chat_bg.setImageBitmap(decodeSampled(File(path)))
+                    // 毛玻璃：软件级盒式模糊（全 API 可用），磨砂背景上浮玻璃面板
+                    iv_chat_bg.setImageBitmap(GlassEffect.frosted(decodeSampled(File(path))))
                 }
             }
             // ListPreference 持久化为 String，必须按 String 读取再转 Int

@@ -63,13 +63,16 @@ class ReadMenu : FrameLayout {
         }
         initAnimation()
         val brightnessBackground = GradientDrawable()
-        brightnessBackground.cornerRadius = 5F.dp
+        brightnessBackground.cornerRadius = 12F.dp
         brightnessBackground.setColor(ColorUtils.adjustAlpha(bgColor, 0.5f))
         ll_brightness.background = brightnessBackground
-        // 底部设置栏：RikkaHub 风浮动圆角卡（随阅读主题色自适应）
-        val menuCard = GradientDrawable()
-        menuCard.cornerRadius = 18F.dp
-        menuCard.setColor(bgColor)
+        // 底部设置栏：毛玻璃浮动卡——半透明渐变 + 高光细描边 + 大圆角（随阅读主题色自适应）
+        val menuCard = GradientDrawable(
+            GradientDrawable.Orientation.TL_BR,
+            intArrayOf(ColorUtils.adjustAlpha(bgColor, 0.88f), ColorUtils.adjustAlpha(bgColor, 0.72f))
+        )
+        menuCard.cornerRadius = 22F.dp
+        menuCard.setStroke(1.dp.coerceAtLeast(1), 0x33FFFFFF)
         ll_bottom_bg.background = menuCard
         fabAutoPage.backgroundTintList = bottomBackgroundList
         fabAutoPage.setColorFilter(textColor)
