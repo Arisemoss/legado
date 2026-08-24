@@ -26,7 +26,6 @@
     <color name="ai_input_bg">#FFFFFF</color>
     <color name="ai_input_stroke">#C5C6D0</color>
     <color name="ai_header_bg">#FFFFFF</color>
-    <color name="ai_bubble_user_text">#FFFFFF</color>
     <color name="ai_send_disabled">#C4CFE2</color>
     <color name="ai_stop_bg">#BA1A1A</color>
     <color name="ai_menu_card">#F2F5FB</color>
