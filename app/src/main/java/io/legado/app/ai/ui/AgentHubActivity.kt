@@ -493,7 +493,7 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
                             ToolEvent.PHASE_RUNNING -> {
                                 v.tv_tool_state_icon.text = "⏳"
                                 v.tv_tool_state.text = "执行中"
-                                v.tv_tool_state.setTextColor(Color.parseColor("#8A94A6"))
+                                v.tv_tool_state.setTextColor(context.getColorCompat(R.color.ai_text_sub))
                             }
                             ToolEvent.PHASE_RESULT -> {
                                 v.tv_tool_state_icon.text = "✅"
@@ -503,7 +503,7 @@ class AgentHubActivity : BaseActivity(R.layout.activity_agent_hub) {
                             ToolEvent.PHASE_CONFIRM -> {
                                 v.tv_tool_state_icon.text = "🔐"
                                 v.tv_tool_state.text = "待确认"
-                                v.tv_tool_state.setTextColor(Color.parseColor("#E08E00"))
+                                v.tv_tool_state.setTextColor(context.getColorCompat(R.color.ai_warn_text))
                             }
                             ToolEvent.PHASE_APPROVED -> {
                                 v.tv_tool_state_icon.text = "✍️"

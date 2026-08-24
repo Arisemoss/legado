@@ -53,8 +53,8 @@ class AIFloatBallView @JvmOverloads constructor(
         ball.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
         ball.setPadding(pad, pad, pad, pad)
         ball.setBackgroundResource(R.drawable.ai_bg_send_circle)
-        ball.setImageResource(R.drawable.ic_ai_search)
-        ball.setColorFilter(android.graphics.Color.WHITE)
+        ball.setImageResource(R.drawable.ic_ai_float)
+        ball.setColorFilter(androidx.core.content.ContextCompat.getColor(context, R.color.ai_on_accent_container))
         addView(ball)
 
         contentDescription = "AI 助手"
