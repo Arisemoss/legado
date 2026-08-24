@@ -32,8 +32,10 @@ class DefaultBookFetcher : BookFetcher {
     override suspend fun search(keyword: String, limit: Int): List<Map<String, Any>> =
         withContext(Dispatchers.IO) {
             val seen = HashSet<String>()
+            // 随机抽取而非固定头部源：避免搜索结果系统性偏向 customOrder 靠前的书源
             val sources = App.db.bookSourceDao().allEnabled
                 .filter { !it.searchUrl.isNullOrBlank() }
+                .shuffled()
                 .take(MAX_SOURCES)
             AiLog.i(
                 "Fetch",

@@ -15,10 +15,8 @@ import io.legado.app.ai.tool.ToolContext
 import io.legado.app.ai.tool.ToolRegistry
 import com.google.gson.Gson
 import kotlinx.coroutines.async
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withTimeoutOrNull
 
 data class AgentResult(
     val answer: String,
@@ -51,7 +49,6 @@ class AgentRuntime(
     private val toolProtocol: String = io.legado.app.ai.model.AiModelConfig.PROTOCOL_AUTO
 ) {
     private val executor = ToolExecutor(registry)
-    private val approvals = Channel<Pair<String, Boolean>>(Channel.UNLIMITED)
     private var eventSeq = 0L
 
     companion object {
@@ -83,9 +80,9 @@ class AgentRuntime(
     private fun previewArgs(args: Map<String, Any>): String =
         runCatching { Gson().toJson(args) }.getOrDefault(args.toString()).take(160)
 
-    /** 供 UI 调用的确认入口；token 与 [ConfirmRequest.confirmToken] 对应 */
+    /** 供 UI 调用的确认入口；token 与 [ConfirmRequest.confirmToken] 对应。经共享总线，不随 runtime 重建失效 */
     fun approve(confirmToken: String, approved: Boolean) {
-        approvals.offer(confirmToken to approved)
+        ApprovalBus.offer(confirmToken, approved)
     }
 
     suspend fun execute(
@@ -306,9 +303,8 @@ class AgentRuntime(
     private suspend fun awaitApproval(ctx: ToolContext, token: String): Boolean {
         while (true) {
             if (ctx.stopRequested.value) return false
-            val event = withTimeoutOrNull(confirmTimeoutMs) { approvals.receive() } ?: return false
-            if (event.first == token) return event.second
-            // token 不匹配说明是历史确认请求，忽略并继续等待当前 token
+            // 广播总线上按 token 过滤；超时/停止均按拒绝处理
+            return ApprovalBus.await(token, confirmTimeoutMs)?.second ?: false
         }
     }
 
