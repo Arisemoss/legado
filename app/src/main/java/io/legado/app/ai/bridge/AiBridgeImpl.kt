@@ -10,6 +10,7 @@ import io.legado.app.help.BookHelp
 import io.legado.app.model.webBook.WebBook
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -17,6 +18,9 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
+
+/** 桥接层共享 IO 协程域：WebBook 调用复用同一 scope，避免每次调用新建永不取消的协程域 */
+private val bridgeIoScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
 /**
  * [BookFetcher] 默认实现：跨已启用书源**并行**搜索（单源 8s 超时），
@@ -50,7 +54,7 @@ class DefaultBookFetcher : BookFetcher {
                         try {
                             val r = withTimeoutOrNull(PER_SOURCE_TIMEOUT_MS) {
                                 WebBook(source).searchBookSuspend(
-                                    scope = CoroutineScope(Dispatchers.IO),
+                                    scope = bridgeIoScope,
                                     key = keyword,
                                     page = 1
                                 )
@@ -118,7 +122,7 @@ class DefaultChapterReader : ChapterReader {
                                 WebBook(source).getContentSuspend(
                                     book = book,
                                     bookChapter = chapter,
-                                    scope = CoroutineScope(Dispatchers.IO)
+                                    scope = bridgeIoScope
                                 )
                             }
                         } catch (_: Exception) {
@@ -208,7 +212,7 @@ class DefaultBookSourceAnalyzer : BookSourceAnalyzer {
         try {
             val results = withTimeout(15_000L) {
                 WebBook(source).searchBookSuspend(
-                    scope = CoroutineScope(Dispatchers.IO),
+                    scope = bridgeIoScope,
                     key = "我的",
                     page = 1
                 )
