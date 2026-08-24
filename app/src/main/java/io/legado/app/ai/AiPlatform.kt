@@ -76,14 +76,16 @@ object AiPlatform {
                 baseUrl = cfg.baseUrl,
                 apiKey = cfg.apiKey,
                 model = cfg.name,
-                timeoutMillis = cfg.timeoutMillis
+                timeoutMillis = cfg.timeoutMillis,
+                textToolMode = cfg.toolProtocol == io.legado.app.ai.model.AiModelConfig.PROTOCOL_TEXT
             )
             runtime = AgentRuntime(
                 client = client,
                 registry = registry,
                 maxRounds = cfg.maxRounds,
                 maxTokens = 16_000L,
-                confirmTimeoutMs = cfg.timeoutMillis,
+                // 确认窗口独立于请求超时：后台任务期间用户可能不在页面上，至少给 5 分钟
+                confirmTimeoutMs = maxOf(cfg.timeoutMillis, 300_000L),
                 preferStream = cfg.stream,
                 toolProtocol = cfg.toolProtocol
             )

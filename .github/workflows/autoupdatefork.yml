@@ -1,9 +1,11 @@
-#更新fork
+# 更新 fork（手动触发）
+# ⚠️ 已停用每日定时盲 merge：本仓库基线为上游 2020-08 快照并深度改造（AI 平台层），
+# 与上游 gedoor/legado 差异巨大，自动合并必然产生大规模冲突/覆盖。如确需同步上游，
+# 请手动运行本 workflow 或在本地分支上评估后再合并。
 name: update fork
 
-on: 
-  schedule:
-    - cron: '0 16 * * *' #设置定时任务
+on:
+  workflow_dispatch:
 
 jobs:
   build:

@@ -25,6 +25,11 @@ class OpenAIClient(
     private val apiKey: String,
     private val model: String,
     private val timeoutMillis: Long = 120_000L,
+    /**
+     * 文本工具协议模式：不发原生 tools schema，且上下文中的 tool_calls/tool 角色
+     * 降级为纯文本（严格校验消息角色的服务商/本地小模型才不会 4xx）
+     */
+    private val textToolMode: Boolean = false,
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(timeoutMillis, TimeUnit.MILLISECONDS)
         .writeTimeout(timeoutMillis, TimeUnit.MILLISECONDS)
@@ -47,7 +52,19 @@ class OpenAIClient(
             .post(RequestBody.create(JSON_MEDIA, body))
             .build()
         val respBody = try {
-            client.newCall(req).execute().use { it.body()?.string() }
+            client.newCall(req).execute().use { resp ->
+                val text = resp.body()?.string()
+                // 非 2xx 一律映射 AUTH_FAILED（与流式路径一致），避免被误判为可重试错误空转重试
+                if (!resp.isSuccessful) {
+                    throw AgentException(
+                        AgentErrorCode.AUTH_FAILED,
+                        "HTTP ${resp.code()}: ${text?.take(200).orEmpty()}"
+                    )
+                }
+                text
+            }
+        } catch (e: AgentException) {
+            throw e
         } catch (e: Exception) {
             throw AgentException(AgentErrorCode.NETWORK_UNAVAILABLE, e.localizedMessage ?: "network error")
         } ?: throw AgentException(AgentErrorCode.NETWORK_UNAVAILABLE, "empty body")
@@ -207,11 +224,22 @@ class OpenAIClient(
         val arr = JsonArray()
         messages.forEach { m ->
             val o = JsonObject()
+            if (textToolMode && m.role == "tool") {
+                // 文本协议降级：tool 角色改为 user，避免严格服务商拒绝非标准角色
+                o.addProperty("role", "user")
+                o.addProperty("content", "[工具调用结果]\n${m.content.orEmpty()}")
+                arr.add(o)
+                return@forEach
+            }
             o.addProperty("role", m.role)
-            if (!m.content.isNullOrEmpty()) o.addProperty("content", m.content)
-            m.toolCalls?.let { calls ->
+            var content = m.content
+            if (textToolMode && !m.toolCalls.isNullOrEmpty()) {
+                // 文本协议降级：assistant 的 tool_calls 还原为 XML 标签拼进正文
+                content = listOf(content, toolCallsAsText(m.toolCalls))
+                    .filterNotNull().filter { it.isNotBlank() }.joinToString("\n")
+            } else if (!textToolMode && m.toolCalls != null) {
                 val tc = JsonArray()
-                calls.forEach { c ->
+                m.toolCalls.forEach { c ->
                     val f = JsonObject()
                     f.addProperty("name", c.function.name)
                     f.addProperty("arguments", c.function.arguments)
@@ -223,15 +251,32 @@ class OpenAIClient(
                 }
                 o.add("tool_calls", tc)
             }
-            if (!m.toolCallId.isNullOrEmpty()) o.addProperty("tool_call_id", m.toolCallId)
+            if (content != null) o.addProperty("content", content)
+            if (!textToolMode && !m.toolCallId.isNullOrEmpty()) o.addProperty("tool_call_id", m.toolCallId)
             if (!m.name.isNullOrEmpty()) o.addProperty("name", m.name)
             arr.add(o)
         }
         root.add("messages", arr)
-        if (!tools.isNullOrEmpty()) {
+        if (!tools.isNullOrEmpty() && !textToolMode) {
             root.add("tools", JsonParser.parseString(GSON.toJson(tools)))
         }
         return GSON.toJson(root)
+    }
+
+    /** 把 tool_calls 还原为文本协议 XML（与 SystemPromptBuilder 约定的格式一致） */
+    private fun toolCallsAsText(calls: List<ToolCall>): String = calls.joinToString("\n") { c ->
+        buildString {
+            append("<tool name=\"${c.function.name}\">")
+            runCatching { JsonParser.parseString(c.function.arguments).asJsonObject }.getOrNull()
+                ?.let { obj ->
+                    obj.entrySet().forEach { (k, v) ->
+                        append("\n<param name=\"").append(k).append("\">")
+                        append(if (v.isJsonPrimitive) v.asString else v.toString())
+                        append("</param>")
+                    }
+                }
+            append("\n</tool>")
+        }
     }
 
     private fun normalizeBase(u: String): String = u.trim().trimEnd('/')

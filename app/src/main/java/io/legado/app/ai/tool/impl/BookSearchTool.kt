@@ -13,7 +13,7 @@ class SearchBooksTool(private val fetcher: BookFetcher) : ToolDefinition {
     override val id = "search_books"
     override val info = ToolDefinitionInfo(
         name = "search_books",
-        description = "跨最多5个已启用书源搜索书籍，返回书名/作者/来源",
+        description = "跨最多6个已启用书源（随机抽取）并行搜索书籍，返回书名/作者/来源",
         parameters = listOf(
             ToolParam("keyword", "string", "书名或作者关键词", required = true),
             ToolParam("limit", "integer", "返回条数，默认5", required = false)

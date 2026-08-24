@@ -6,7 +6,7 @@
         android:key="ai_provider"
         android:title="服务商预设"
         android:summary="选择服务商可自动填充 Base URL 与推荐模型"
-        android:defaultValue="openai"
+        android:defaultValue="deepseek"
         app:entries="@array/ai_provider_entries"
         app:entryValues="@array/ai_provider_values"
         app:iconSpaceReserved="false" />
