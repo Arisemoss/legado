@@ -158,7 +158,7 @@ class AIFloatBallView @JvmOverloads constructor(
 
     private fun clampToParent() {
         val p = parent as? ViewGroup ?: return
-        x = x.coerceIn(0f, (p.width - width).coerceAtLeast(0f))
-        y = y.coerceIn(0f, (p.height - height).coerceAtLeast(0f))
+        x = x.coerceIn(0f, (p.width - width).toFloat().coerceAtLeast(0f))
+        y = y.coerceIn(0f, (p.height - height).toFloat().coerceAtLeast(0f))
     }
 }

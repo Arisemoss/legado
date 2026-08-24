@@ -9,7 +9,9 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import io.legado.app.App
 import io.legado.app.R
+import io.legado.app.ai.AiPlatform
 import io.legado.app.ai.log.AiLog
+import io.legado.app.ai.model.ChatMessage
 import io.legado.app.ai.ui.AgentHubActivity
 import io.legado.app.constant.PreferKey
 import io.legado.app.ai.tool.ToolContext
@@ -172,6 +174,6 @@ object AgentTaskCenter {
                 .setAutoCancel(true)
                 .build()
             nm.notify(NOTIFY_ID, notification)
-        }.onFailure { AiLog.w("Task", "完成通知发送失败", it) }
+        }.onFailure { AiLog.e("Task", "完成通知发送失败", it) }
     }
 }
