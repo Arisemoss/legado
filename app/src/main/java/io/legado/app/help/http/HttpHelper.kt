@@ -9,6 +9,7 @@ import okhttp3.*
 import retrofit2.Retrofit
 import java.net.InetSocketAddress
 import java.net.Proxy
+import java.util.LinkedHashMap
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
@@ -34,10 +35,42 @@ object HttpHelper {
      * 重建 client，使 preferKey 变化（如证书开关）立即生效。
      * 调用方：AppConfig.allowUnsafeCertificate.setter
      */
+    @Synchronized
     fun refreshClient() {
         _client = null
+        // 缓存中的 Retrofit 绑定旧 client，重建后一并失效
+        retrofitCache.clear()
         // 惰性触发重建（表达式返回即可，无需赋值给符号）
         client
+    }
+
+    /** Retrofit 最大缓存条目数（有界 LRU） */
+    private const val MAX_RETROFIT_CACHE = 64
+
+    /** Retrofit 缓存键：由 baseUrl / encode / proxy / 转换器类型唯一确定 */
+    private data class RetrofitKey(
+        val baseUrl: String,
+        val encode: String?,
+        val proxy: String?,
+        val byteConverter: Boolean
+    )
+
+    /**
+     * 有界 LRU 缓存（accessOrder=true），按 (baseUrl, encode, proxy) 复用 Retrofit，
+     * 避免每次网络请求重复 new Retrofit / EncodeConverter。
+     */
+    private val retrofitCache =
+        object : LinkedHashMap<RetrofitKey, Retrofit>(16, 0.75f, true) {
+            override fun removeEldestEntry(
+                eldest: MutableMap.MutableEntry<RetrofitKey, Retrofit>?
+            ): Boolean = size > MAX_RETROFIT_CACHE
+        }
+
+    /** 线程安全：命中即返回缓存实例，未命中则以 [build] 构建并回填 */
+    @Synchronized
+    private fun getOrBuild(key: RetrofitKey, build: () -> Retrofit): Retrofit {
+        retrofitCache[key]?.let { return it }
+        return build().also { retrofitCache[key] = it }
     }
 
     private fun buildClient(): OkHttpClient {
@@ -125,11 +158,13 @@ object HttpHelper {
     }
 
     fun getRetrofit(baseUrl: String, encode: String? = null): Retrofit {
-        return Retrofit.Builder().baseUrl(baseUrl)
-            //增加返回值为字符串的支持(以实体类返回)
-            .addConverterFactory(EncodeConverter(encode))
-            .client(client)
-            .build()
+        return getOrBuild(RetrofitKey(baseUrl, encode, null, false)) {
+            Retrofit.Builder().baseUrl(baseUrl)
+                //增加返回值为字符串的支持(以实体类返回)
+                .addConverterFactory(EncodeConverter(encode))
+                .client(client)
+                .build()
+        }
     }
 
     fun getRetrofitWithProxy(
@@ -137,56 +172,59 @@ object HttpHelper {
         encode: String? = null,
         proxy: String? = null
     ): Retrofit {
-        val r = Regex("(http|socks4|socks5)://(.*):(\\d{2,5})(@.*@.*)?")
-        val ms = proxy?.let { r.findAll(it) };
-        val group = ms?.first()
-        var type = "direct"     //直接连接
-        var host = "127.0.0.1"  //代理服务器hostname
-        var port = 1080            //代理服务器port
-        var username = ""       //代理服务器验证用户名
-        var password = ""       //代理服务器验证密码
-        if (group != null) {
-            type = if (group.groupValues[1] == "http") {
-                "http"
-            } else {
-                "socks"
-            }
-            host = group.groupValues[2]
-            port = group.groupValues[3].toInt()
-            if (group.groupValues[4] != "") {
-                username = group.groupValues[4].split("@")[1]
-                password = group.groupValues[4].split("@")[2]
-            }
-        }
-        val builder = client.newBuilder()
-        if (type != "direct" && host != "") {
-            if (type == "http") {
-                builder.proxy(Proxy(Proxy.Type.HTTP, InetSocketAddress(host, port)));
-            } else {
-                builder.proxy(Proxy(Proxy.Type.SOCKS, InetSocketAddress(host, port)));
-            }
-            if (username != "" && password != "") {
-                builder.proxyAuthenticator { _, response -> //设置代理服务器账号密码
-                    val credential: String = Credentials.basic(username, password)
-                    response.request().newBuilder()
-                        .header("Proxy-Authorization", credential)
-                        .build()
+        return getOrBuild(RetrofitKey(baseUrl, encode, proxy, false)) {
+            val r = Regex("(http|socks4|socks5)://(.*):(\\d{2,5})(@.*@.*)?")
+            val ms = proxy?.let { r.findAll(it) }
+            val group = ms?.first()
+            var type = "direct"     //直接连接
+            var host = "127.0.0.1"  //代理服务器hostname
+            var port = 1080            //代理服务器port
+            var username = ""       //代理服务器验证用户名
+            var password = ""       //代理服务器验证密码
+            if (group != null) {
+                type = if (group.groupValues[1] == "http") {
+                    "http"
+                } else {
+                    "socks"
+                }
+                host = group.groupValues[2]
+                port = group.groupValues[3].toInt()
+                if (group.groupValues[4] != "") {
+                    username = group.groupValues[4].split("@")[1]
+                    password = group.groupValues[4].split("@")[2]
                 }
             }
-
+            val builder = client.newBuilder()
+            if (type != "direct" && host != "") {
+                if (type == "http") {
+                    builder.proxy(Proxy(Proxy.Type.HTTP, InetSocketAddress(host, port)))
+                } else {
+                    builder.proxy(Proxy(Proxy.Type.SOCKS, InetSocketAddress(host, port)))
+                }
+                if (username != "" && password != "") {
+                    builder.proxyAuthenticator { _, response -> //设置代理服务器账号密码
+                        val credential: String = Credentials.basic(username, password)
+                        response.request().newBuilder()
+                            .header("Proxy-Authorization", credential)
+                            .build()
+                    }
+                }
+            }
+            Retrofit.Builder().baseUrl(baseUrl)
+                //增加返回值为字符串的支持(以实体类返回)
+                .addConverterFactory(EncodeConverter(encode))
+                .client(builder.build())
+                .build()
         }
-        return Retrofit.Builder().baseUrl(baseUrl)
-            //增加返回值为字符串的支持(以实体类返回)
-            .addConverterFactory(EncodeConverter(encode))
-            .client(builder.build())
-            .build()
     }
 
     fun getByteRetrofit(baseUrl: String): Retrofit {
-        return Retrofit.Builder().baseUrl(baseUrl)
-            .addConverterFactory(ByteConverter())
-            .client(client)
-            .build()
+        return getOrBuild(RetrofitKey(baseUrl, null, null, true)) {
+            Retrofit.Builder().baseUrl(baseUrl)
+                .addConverterFactory(ByteConverter())
+                .client(client)
+                .build()
+        }
     }
 
     private fun getHeaderInterceptor(): Interceptor {
