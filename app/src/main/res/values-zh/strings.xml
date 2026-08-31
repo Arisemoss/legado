@@ -523,6 +523,12 @@
     <string name="web_menu">Web服务</string>
     <string name="web_port_title">web端口</string>
     <string name="web_port_summary">当前端口 %s</string>
+    <string name="web_lan_access_title">允许局域网访问</string>
+    <string name="web_lan_access_summary">默认仅绑定本机（localhost），Web 服务只能在本设备访问。开启后可被同一 Wi‑Fi 下其他设备访问，且任意设备无需密码即可读写你的书架与书源数据，存在隐私泄露风险。</string>
+    <string name="allow_unsafe_certificate_title">信任所有证书</string>
+    <string name="allow_unsafe_certificate_summary">仅当书源使用自签名或不受信任证书时开启。会关闭 HTTPS 证书与主机名校验，存在中间人风险。</string>
+    <string name="reader_data_permission_label">访问书架与书源数据</string>
+    <string name="reader_data_permission_desc">允许通过读写内容提供者访问书架与书源数据（仅限同签名应用）。</string>
     <string name="qr_share">二维码分享</string>
     <string name="str_share">字符串分享</string>
     <string name="wifi_share">wifi分享</string>

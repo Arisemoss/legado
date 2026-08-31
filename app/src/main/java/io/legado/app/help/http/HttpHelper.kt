@@ -1,6 +1,7 @@
 package io.legado.app.help.http
 
 import io.legado.app.constant.AppConst
+import io.legado.app.help.AppConfig
 import io.legado.app.help.http.api.HttpGetApi
 import io.legado.app.utils.NetworkUtils
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -14,8 +15,32 @@ import kotlin.coroutines.resume
 @Suppress("unused")
 object HttpHelper {
 
-    val client: OkHttpClient by lazy {
+    @Volatile
+    private var _client: OkHttpClient? = null
 
+    /**
+     * 默认 OkHttpClient。
+     * - 默认使用系统 CA 校验 TLS 证书（安全）
+     * - 当用户开启 [AppConfig.allowUnsafeCertificate] 时，信任任意证书（降级，用于自签名书源）
+     */
+    val client: OkHttpClient
+        get() {
+            val c = _client
+            if (c != null) return c
+            return buildClient().also { _client = it }
+        }
+
+    /**
+     * 重建 client，使 preferKey 变化（如证书开关）立即生效。
+     * 调用方：AppConfig.allowUnsafeCertificate.setter
+     */
+    fun refreshClient() {
+        _client = null
+        // 惰性触发重建
+        val _ = client
+    }
+
+    private fun buildClient(): OkHttpClient {
         val specs = arrayListOf(
             ConnectionSpec.MODERN_TLS,
             ConnectionSpec.COMPATIBLE_TLS,
@@ -26,16 +51,21 @@ object HttpHelper {
             .connectTimeout(15, TimeUnit.SECONDS)
             .writeTimeout(15, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
-            .sslSocketFactory(SSLHelper.unsafeSSLSocketFactory, SSLHelper.unsafeTrustManager)
             .retryOnConnectionFailure(true)
-            .hostnameVerifier(SSLHelper.unsafeHostnameVerifier)
             .connectionSpecs(specs)
             .followRedirects(true)
             .followSslRedirects(true)
             .protocols(listOf(Protocol.HTTP_1_1))
             .addInterceptor(getHeaderInterceptor())
 
-        builder.build()
+        val unsafe = AppConfig.allowUnsafeCertificate
+        if (unsafe) {
+            builder.sslSocketFactory(SSLHelper.unsafeSSLSocketFactory, SSLHelper.unsafeTrustManager)
+            builder.hostnameVerifier(SSLHelper.unsafeHostnameVerifier)
+        }
+        // unsafe=false 时：不设 sslSocketFactory/hostnameVerifier，OkHttp 默认使用系统 CA 并校验 hostname
+
+        return builder.build()
     }
 
     fun simpleGet(url: String, encode: String? = null): String? {

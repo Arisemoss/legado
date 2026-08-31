@@ -19,6 +19,13 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!-- 保护对外暴露的 ReaderProvider：仅同签名的应用（及本应用）可读写书架/书源数据 -->
+    <permission
+        android:name="io.legado.app.permission.READER_DATA"
+        android:description="@string/reader_data_permission_desc"
+        android:label="@string/reader_data_permission_label"
+        android:protectionLevel="signature" />
+
     <application
         android:name=".App"
         android:allowBackup="true"
@@ -371,7 +378,8 @@
             android:authorities="${applicationId}.readerProvider"
             android:enabled="true"
             android:exported="true"
-            tools:ignore="ExportedContentProvider" />
+            android:readPermission="io.legado.app.permission.READER_DATA"
+            android:writePermission="io.legado.app.permission.READER_DATA" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileProvider"

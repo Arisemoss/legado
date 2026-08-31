@@ -75,6 +75,13 @@
             android:title="@string/web_port_title"
             app:iconSpaceReserved="false" />
 
+        <io.legado.app.ui.widget.prefs.SwitchPreference
+            android:defaultValue="false"
+            android:key="webLanAccess"
+            android:title="@string/web_lan_access_title"
+            android:summary="@string/web_lan_access_summary"
+            app:iconSpaceReserved="false" />
+
         <io.legado.app.ui.widget.prefs.Preference
             android:key="cleanCache"
             android:title="@string/clear_cache"
@@ -92,6 +99,13 @@
             android:defaultValue="false"
             android:key="recordLog"
             android:title="@string/record_log"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.ui.widget.prefs.SwitchPreference
+            android:defaultValue="false"
+            android:key="allowUnsafeCertificate"
+            android:title="@string/allow_unsafe_certificate_title"
+            android:summary="@string/allow_unsafe_certificate_summary"
             app:iconSpaceReserved="false" />
 
     </io.legado.app.ui.widget.prefs.PreferenceCategory>

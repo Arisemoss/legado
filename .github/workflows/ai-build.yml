@@ -38,10 +38,22 @@ jobs:
           sdkmanager "platforms;android-29" "build-tools;29.0.3" >/dev/null 2>&1 || true
           echo "SDK ready"
 
-      - name: Configure release signing
+      # 签名只从 GitHub Secrets 读取，仓库内不再存放 jks 与口令。
+      # 若 Secrets 未配置（如 fork PR），则跳过签名（构建 unsigned，不影响开发）。
+      - name: Configure release signing (from Secrets)
+        env:
+          LEGADO_RELEASE_KEYSTORE_BASE64: ${{ secrets.LEGADO_RELEASE_KEYSTORE_BASE64 }}
+          LEGADO_RELEASE_KEY_ALIAS: ${{ secrets.LEGADO_RELEASE_KEY_ALIAS }}
+          LEGADO_RELEASE_STORE_PASSWORD: ${{ secrets.LEGADO_RELEASE_STORE_PASSWORD }}
+          LEGADO_RELEASE_KEY_PASSWORD: ${{ secrets.LEGADO_RELEASE_KEY_PASSWORD }}
         run: |
-          cp .github/workflows/legado.jks app/legado.jks
-          printf '\nRELEASE_STORE_FILE=./legado.jks\nRELEASE_KEY_ALIAS=legado\nRELEASE_STORE_PASSWORD=gedoor_legado\nRELEASE_KEY_PASSWORD=gedoor_legado\n' >> gradle.properties
+          if [ -n "$LEGADO_RELEASE_KEYSTORE_BASE64" ]; then
+            echo "$LEGADO_RELEASE_KEYSTORE_BASE64" | base64 -d > app/legado.jks
+            printf '\nRELEASE_STORE_FILE=./legado.jks\nRELEASE_KEY_ALIAS=%s\nRELEASE_STORE_PASSWORD=%s\nRELEASE_KEY_PASSWORD=%s\n' \
+              "$LEGADO_RELEASE_KEY_ALIAS" "$LEGADO_RELEASE_STORE_PASSWORD" "$LEGADO_RELEASE_KEY_PASSWORD" >> gradle.properties
+          else
+            echo "::warning::LEGADO_RELEASE_KEYSTORE_BASE64 未配置，本次构建为 unsigned APK"
+          fi
 
       - name: Build AI coexist release APK
         run: |

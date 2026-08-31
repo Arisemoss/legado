@@ -11,6 +11,7 @@ import io.legado.app.constant.IntentAction
 import io.legado.app.constant.PreferKey
 import io.legado.app.help.IntentHelp
 import io.legado.app.utils.NetworkUtils
+import io.legado.app.utils.getPrefBoolean
 import io.legado.app.utils.getPrefInt
 import io.legado.app.utils.postEvent
 import io.legado.app.web.HttpServer
@@ -75,15 +76,21 @@ class WebService : BaseService() {
             webSocketServer?.stop()
         }
         val port = getPort()
-        httpServer = HttpServer(port)
-        webSocketServer = WebSocketServer(port + 1)
+        // 安全默认：仅绑定本机回环，阻止局域网内未授权设备读写书架/书源；
+        // 仅当用户显式开启 webLanAccess 时才暴露到局域网（仍无口令，需自负暴露风险）。
+        val lanAccess = getPrefBoolean(PreferKey.webLanAccess, false)
+        val bindHost = if (lanAccess) "0.0.0.0" else "127.0.0.1"
+        httpServer = HttpServer(bindHost, port)
+        webSocketServer = WebSocketServer(bindHost, port + 1)
         val address = NetworkUtils.getLocalIPAddress()
         if (address != null) {
             try {
                 httpServer?.start()
                 webSocketServer?.start(1000 * 30) // 通信超时设置
                 isRun = true
-                updateNotification(getString(R.string.http_ip, address.hostAddress, port))
+                // 本机访问展示 localhost；局域网访问展示手机 IP
+                val displayHost = if (lanAccess) address.hostAddress else "localhost"
+                updateNotification(getString(R.string.http_ip, displayHost, port))
             } catch (e: IOException) {
                 launch {
                     toast(e.localizedMessage ?: "")

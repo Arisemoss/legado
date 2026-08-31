@@ -8,7 +8,7 @@ import io.legado.app.web.utils.AssetsWeb
 import io.legado.app.web.utils.ReturnData
 import java.util.*
 
-class HttpServer(port: Int) : NanoHTTPD(port) {
+class HttpServer(hostname: String, port: Int) : NanoHTTPD(hostname, port) {
     private val assetsWeb = AssetsWeb("web")
 
 

@@ -151,6 +151,10 @@
 #数据类
 -keep class **.data.**{*;}
 
+# AI 模块：ChatMessage/ToolDefinition/ChatCompletion/AgentError 等模型被 Gson 反射序列化，
+# 字段名一旦被 R8 改写会导致 AI 协议解析错乱、工具调用失联。整体保留该包保证协议兼容与运行稳定。
+-keep class io.legado.app.ai.** { *; }
+
 -dontwarn rx.**
 -dontwarn okio.**
 -dontwarn javax.annotation.**

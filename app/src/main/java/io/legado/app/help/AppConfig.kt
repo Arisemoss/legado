@@ -5,6 +5,7 @@ import android.content.Context
 import io.legado.app.App
 import io.legado.app.R
 import io.legado.app.constant.PreferKey
+import io.legado.app.help.http.HttpHelper
 import io.legado.app.utils.*
 
 object AppConfig {
@@ -134,7 +135,18 @@ object AppConfig {
 
     val autoChangeSource: Boolean get() = App.INSTANCE.getPrefBoolean("autoChangeSource", true)
 
-    val readBodyToLh: Boolean get() = App.INSTANCE.getPrefBoolean(PreferKey.readBodyToLh, true)
+    var readBodyToLh: Boolean get() = App.INSTANCE.getPrefBoolean(PreferKey.readBodyToLh, true)
+
+    /**
+     * 是否信任任意证书（关闭 TLS 证书校验 / 主机名校验）。
+     * 默认 false（安全）。仅当用户需要访问自签名/未受信证书的书源时显式开启。
+     */
+    var allowUnsafeCertificate: Boolean
+        get() = App.INSTANCE.getPrefBoolean(PreferKey.allowUnsafeCertificate, false)
+        set(value) {
+            App.INSTANCE.putPrefBoolean(PreferKey.allowUnsafeCertificate, value)
+            HttpHelper.refreshClient()
+        }
 
     val isGooglePlay: Boolean get() = App.INSTANCE.channel == "google"
 

@@ -18,6 +18,7 @@ import io.legado.app.constant.EventBus
 import io.legado.app.constant.PreferKey
 import io.legado.app.help.AppConfig
 import io.legado.app.help.BookHelp
+import io.legado.app.help.http.HttpHelper
 import io.legado.app.help.permission.Permissions
 import io.legado.app.help.permission.PermissionsCompat
 import io.legado.app.lib.dialogs.alert
@@ -122,6 +123,7 @@ class OtherConfigFragment : BasePreferenceFragment(),
             )
             PreferKey.replaceEnableDefault -> AppConfig.replaceEnableDefault =
                 App.INSTANCE.getPrefBoolean(PreferKey.replaceEnableDefault, true)
+            PreferKey.allowUnsafeCertificate -> HttpHelper.refreshClient()
             PreferKey.language -> {
                 LanguageUtils.setConfigurationOld(App.INSTANCE)
                 postEvent(EventBus.RECREATE, "")

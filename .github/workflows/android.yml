@@ -12,6 +12,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # 完整克隆：versionCode 用 git 提交总数，浅克隆会导致 versionCode 失真
+          fetch-depth: 0
 
       - name: Install Android SDK components
         run: |
