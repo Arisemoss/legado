@@ -135,7 +135,7 @@ object AppConfig {
 
     val autoChangeSource: Boolean get() = App.INSTANCE.getPrefBoolean("autoChangeSource", true)
 
-    var readBodyToLh: Boolean get() = App.INSTANCE.getPrefBoolean(PreferKey.readBodyToLh, true)
+    val readBodyToLh: Boolean get() = App.INSTANCE.getPrefBoolean(PreferKey.readBodyToLh, true)
 
     /**
      * 是否信任任意证书（关闭 TLS 证书校验 / 主机名校验）。
