@@ -36,8 +36,8 @@ object HttpHelper {
      */
     fun refreshClient() {
         _client = null
-        // 惰性触发重建
-        val _ = client
+        // 惰性触发重建（表达式返回即可，无需赋值给符号）
+        client
     }
 
     private fun buildClient(): OkHttpClient {
