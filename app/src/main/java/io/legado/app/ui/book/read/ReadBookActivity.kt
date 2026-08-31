@@ -771,6 +771,7 @@ class ReadBookActivity : VMBaseActivity<ReadBookViewModel>(R.layout.activity_boo
     override fun onDestroy() {
         // 释放全局单例持有的 Activity 引用，避免内存泄漏
         ReadBook.callBack = null
+        ReadBook.cancelPreFetch() // 关闭阅读页时取消后台章节预取任务
         super.onDestroy()
         mHandler.removeCallbacks(keepScreenRunnable)
         textActionMenu?.dismiss()
