@@ -18,8 +18,10 @@ import io.legado.app.service.BaseReadAloudService
 import io.legado.app.ui.book.read.page.entities.TextChapter
 import io.legado.app.ui.book.read.page.provider.ChapterProvider
 import io.legado.app.ui.book.read.page.provider.ImageProvider
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.anko.getStackTraceString
@@ -43,9 +45,26 @@ object ReadBook {
     var msg: String? = null
     private val loadingChapters = arrayListOf<Int>()
     private val readRecord = ReadRecord()
+
+    /**
+     * 章节预取专用 scope：替换 GlobalScope，随换书/关闭阅读器时取消，
+     * 避免后台空转下载网络章节。
+     */
+    private val prefetchScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var prefetchJob: Job? = null
+
+    /**
+     * 取消进行中的章节预取任务。换书（resetData）与关闭阅读器（ReadBookActivity.onDestroy）时调用。
+     */
+    fun cancelPrefetch() {
+        prefetchJob?.cancel()
+        prefetchJob = null
+    }
+
     var readStartTime: Long = System.currentTimeMillis()
 
     fun resetData(book: Book) {
+        cancelPrefetch()
         this.book = book
         readRecord.bookName = book.name
         readRecord.readTime = App.db.readRecordDao().getReadTime(book.name) ?: 0
@@ -109,7 +128,8 @@ object ReadBook {
                     callBack?.upContent()
                 }
                 loadContent(durChapterIndex.plus(1), upContent, false)
-                GlobalScope.launch(Dispatchers.IO) {
+                cancelPrefetch()
+                prefetchJob = prefetchScope.launch {
                     for (i in 2..10) {
                         delay(100)
                         download(durChapterIndex + i)
@@ -139,7 +159,8 @@ object ReadBook {
                     callBack?.upContent()
                 }
                 loadContent(durChapterIndex.minus(1), upContent, false)
-                GlobalScope.launch(Dispatchers.IO) {
+                cancelPrefetch()
+                prefetchJob = prefetchScope.launch {
                     for (i in -5..-2) {
                         delay(100)
                         download(durChapterIndex + i)
