@@ -125,6 +125,7 @@ io.legado.app
 ## 📚 开发文档
 
 - [AI Agent 平台设计（Rev.2）](docs/superpowers/specs/2026-08-20-ai-agent-platform-design.md)
+- [📌 项目地图与状态报告 v2（2026-09，基线 53096e427）](docs/superpowers/reports/2026-09-05-项目地图-状态报告-v2-53096e427.md)
 - [RikkaHub UI 移植说明](docs/superpowers/specs/2026-08-23-rikkahub-ui-migration.md)
 - [Operit 工具兼容层说明](docs/superpowers/specs/2026-08-23-operit-toolcall-compat.md)
 - [小白上手指南](docs/小白上手指南.md)

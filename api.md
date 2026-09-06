@@ -1,4 +1,8 @@
 # 阅读API
+
+> ⚠️ **fork 过时点注记（2026-09-05 复核）**：① 本仓库 Web 服务默认端口为 **1122**（设置项 webPort 可调），默认仅绑定 127.0.0.1（`webLanAccess` 开才暴露局域网）；
+> ② 文中要求的 `io.legado.READ_WRITE` 权限并不存在；`readerProvider` 现由 **signature 级权限 `io.legado.app.permission.READER_DATA`** 保护（仅同签名应用可访问）。
+> 详见 [项目地图与状态报告 v2](docs/superpowers/reports/2026-09-05-项目地图-状态报告-v2-53096e427.md)。
 ## 对于Web的配置
 您需要先在设置中启用"Web 服务"。  
 ## 使用
